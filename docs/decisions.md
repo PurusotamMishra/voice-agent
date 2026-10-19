@@ -39,7 +39,12 @@ Fill this in as decisions are made; it goes into the README verbatim.
 3. "Around X" means a hard cap of X + 10%, ranked by closeness to X.
 4. "Purpose" never filters; it only boosts ranking and appears as a spoken reason.
 5. Catalog listings are synthetic; model specs come from public spec pages (see CITATIONS.md) and may differ slightly from manufacturer data.
-6. …
+6. A bare amount ("budget 5 lakh") means `budget_max`.
+7. "Small truck / chhota truck" means body type `mini_truck`.
+8. A model-family mention ("Ace", "chhota haathi") filters by family prefix (Ace Gold, Ace CNG, Ace Mega, …), not one variant.
+9. Follow-up questions are answered by deterministic templates from the referenced listing (no LLM): zero hallucination risk, lower latency.
+10. STT and TTS run in the API layer around the graph; the graph itself is text-in/text-out, so eval and CLI exercise the same graph as voice.
+11. …
 
 ## B. Data / catalog
 
