@@ -1,0 +1,64 @@
+[project]
+name = "voice-agent"
+version = "0.1.0"
+description = "Voice-first used commercial vehicle search"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-core>=1.6.12",
+    "langchain-google-genai>=4.4.2",
+    "langchain-groq>=1.1.3",
+    "langgraph>=1.2.16",
+    "langgraph-checkpoint-postgres>=3.2.0",
+    "psycopg-pool>=3.3.3",
+    "psycopg[binary]>=3.3.6",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.0",
+    "pyyaml>=6.0.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/voice_agent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+# docs hold illustrative code; generate_catalog.py predates the lint config
+extend-exclude = ["docs", "scripts/generate_catalog.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF001", "E501"]  # allow ₹; ruff format handles wrapping
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "voice_agent.domain.*",
+  "voice_agent.understanding.*",
+  "voice_agent.catalog.*",
+  "voice_agent.response.*",
+  "voice_agent.state.*",
+]
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["db: needs a running Postgres (DATABASE_URL)"]
+addopts = "-m 'not db'"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.17.1",
+    "types-pyyaml>=6.0.12.20260906",
+]
