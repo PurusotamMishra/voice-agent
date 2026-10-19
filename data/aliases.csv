@@ -1,0 +1,151 @@
+alias,canonical,kind
+tata,Tata,make
+tata motors,Tata,make
+mahindra,Mahindra,make
+mahindra & mahindra,Mahindra,make
+mahindra and mahindra,Mahindra,make
+m&m,Mahindra,make
+m and m,Mahindra,make
+ashok leyland,Ashok Leyland,make
+leyland,Ashok Leyland,make
+al,Ashok Leyland,make
+ashok,Ashok Leyland,make
+maruti,Maruti Suzuki,make
+maruti suzuki,Maruti Suzuki,make
+suzuki,Maruti Suzuki,make
+eicher,Eicher,make
+eicher motors,Eicher,make
+piaggio,Piaggio,make
+bajaj,Bajaj,make
+bajaj auto,Bajaj,make
+bharatbenz,BharatBenz,make
+bharat benz,BharatBenz,make
+benz,BharatBenz,make
+ace,Ace Gold,model
+aces,Ace Gold,model
+a s,Ace Gold,model
+tata ace,Ace Gold,model
+ace gold,Ace Gold,model
+chota hathi,Ace Gold,model
+chhota haathi,Ace Gold,model
+chota haathi,Ace Gold,model
+chhota hathi,Ace Gold,model
+ace ht plus,Ace HT Plus,model
+ace ht,Ace HT Plus,model
+ht plus,Ace HT Plus,model
+ace mega,Ace Mega,model
+ace cng,Ace CNG,model
+ace ev,Ace EV,model
+ace electric,Ace EV,model
+intra,Intra,model
+tata intra,Intra,model
+yodha,Yodha,model
+yoddha,Yodha,model
+bolero pickup,Bolero Pik-Up,model
+bolero pick up,Bolero Pik-Up,model
+bolero pik up,Bolero Pik-Up,model
+bolero pikup,Bolero Pik-Up,model
+pik up,Bolero Pik-Up,model
+bolero maxx,Bolero Maxx Pik-Up,model
+bolero max,Bolero Maxx Pik-Up,model
+bolero maxx pickup,Bolero Maxx Pik-Up,model
+maxx pickup,Bolero Maxx Pik-Up,model
+jeeto,Jeeto,model
+jeetu,Jeeto,model
+jito,Jeeto,model
+supro,Supro,model
+supro profit truck,Supro,model
+treo zor,Treo Zor,model
+treo,Treo Zor,model
+zor,Treo Zor,model
+dost,Dost,model
+dosth,Dost,model
+dost plus,Dost,model
+bada dost,Bada Dost,model
+bara dost,Bada Dost,model
+super carry,Super Carry,model
+supercarry,Super Carry,model
+eeco,Eeco Cargo,model
+eeco cargo,Eeco Cargo,model
+eco cargo,Eeco Cargo,model
+pro 2049,Pro 2049,model
+pro 2059,Pro 2059,model
+pro 2110,Pro 2110,model
+pro 3015,Pro 3015,model
+407,407 Gold,model
+tata 407,407 Gold,model
+lpt 1109,LPT 1109,model
+signa,Signa 2823.K,model
+signa tipper,Signa 2823.K,model
+2828,2828C,model
+2828c,2828C,model
+ape,Ape Xtra LDX,model
+ape xtra,Ape Xtra LDX,model
+aape,Ape Xtra LDX,model
+maxima,Maxima C,model
+maxima cargo,Maxima C,model
+mini truck,mini_truck,body_type
+small truck,mini_truck,body_type
+chota truck,mini_truck,body_type
+chhota truck,mini_truck,body_type
+chhota haathi,mini_truck,body_type
+chota hathi,mini_truck,body_type
+maal gaadi,mini_truck,body_type
+pickup,pickup,body_type
+pikup,pickup,body_type
+pick up,pickup,body_type
+pickup truck,pickup,body_type
+cargo van,cargo_van,body_type
+delivery van,cargo_van,body_type
+van,cargo_van,body_type
+lcv,lcv,body_type
+tempo,lcv,body_type
+badi gaadi,lcv,body_type
+icv,icv,body_type
+tipper,tipper,body_type
+dumper,tipper,body_type
+three wheeler,three_wheeler,body_type
+3 wheeler,three_wheeler,body_type
+auto,three_wheeler,body_type
+loader auto,three_wheeler,body_type
+e-rickshaw loader,three_wheeler,body_type
+e rickshaw loader,three_wheeler,body_type
+diesel,diesel,fuel
+diesel wali,diesel,fuel
+petrol,petrol,fuel
+petrol wali,petrol,fuel
+cng,cng,fuel
+c n g,cng,fuel
+gas,cng,fuel
+gas wali,cng,fuel
+electric,electric,fuel
+ev,electric,fuel
+bijli wali,electric,fuel
+battery wali,electric,fuel
+battery,electric,fuel
+mumbai,mumbai,city
+bombay,mumbai,city
+delhi,delhi,city
+new delhi,delhi,city
+dilli,delhi,city
+gurgaon,delhi,city
+gurugram,delhi,city
+noida,delhi,city
+ncr,delhi,city
+bengaluru,bengaluru,city
+bangalore,bengaluru,city
+blr,bengaluru,city
+pune,pune,city
+poona,pune,city
+hyderabad,hyderabad,city
+hyd,hyderabad,city
+secunderabad,hyderabad,city
+chennai,chennai,city
+madras,chennai,city
+ahmedabad,ahmedabad,city
+amdavad,ahmedabad,city
+jaipur,jaipur,city
+lucknow,lucknow,city
+lko,lucknow,city
+kolkata,kolkata,city
+calcutta,kolkata,city

@@ -1,0 +1,36 @@
+model_id,make,model,variant,body_type,fuel,payload_kg,gvw_kg,engine_cc,new_price_inr_min,new_price_inr_max,launch_year,source_url
+tata_ace_gold_petrol,Tata,Ace Gold,Petrol,mini_truck,petrol,750,1615,694,399000,460000,2019,estimate
+tata_ace_gold_diesel,Tata,Ace Gold,Diesel,mini_truck,diesel,750,1670,702,554000,669000,2019,https://trucksbuses.com/scv/pickups-and-mini-trucks/tata-ace-gold/specifications
+tata_ace_cng_bifuel,Tata,Ace CNG,Bi-Fuel,mini_truck,cng,660,1630,694,612000,659000,2022,https://trucksbuses.com/web-stories/tata-ace-gold-cng-diesel-petrol-ht-gvw-payload-body-length
+tata_ace_ht_plus_diesel,Tata,Ace HT Plus,Diesel,mini_truck,diesel,900,1870,800,669000,719000,2022,https://www.trucksbuses.com/compare-scv-pick-ups-mini-trucks-vans/tata-ace-mega-vs-Tata-Ace-HT-Plus
+tata_ace_mega_diesel,Tata,Ace Mega,Diesel,mini_truck,diesel,1000,2040,800,530000,580000,2014,estimate
+tata_ace_ev_standard,Tata,Ace EV,Standard,mini_truck,electric,600,1840,,921000,1051000,2023,https://www.trucksbuses.com/scv/pickups-and-mini-trucks/tata-ace-ev-electric/specifications
+tata_ace_ev_1000,Tata,Ace EV,1000,mini_truck,electric,1000,2120,,1127000,1150000,2024,https://www.trucksbuses.com/scv/pickups-and-mini-trucks/tata-ace-ev-1000/specifications
+tata_intra_v30,Tata,Intra,V30,pickup,diesel,1300,2565,1496,757000,844000,2019,https://91trucks.com/compare-truck/tata-intra-v30-vs-tata-intra-v50
+tata_intra_v50,Tata,Intra,V50,pickup,diesel,1500,2960,1496,890000,940000,2019,https://www.trucksbuses.com/compare-scv-pick-ups-mini-trucks-vans/tata-intra-v30-vs-tata-intra-v50
+tata_yodha_2_0,Tata,Yodha,2.0,pickup,diesel,2000,3480,2200,956000,1038000,2022,https://trucksbuses.com/scv/pickups-and-mini-trucks/tata-yodha-2-0/specifications
+mahindra_bolero_pikup_fb_1_3,Mahindra,Bolero Pik-Up,FB 1.3,pickup,diesel,1300,2950,2523,909000,990000,2012,https://trucks.tractorjunction.com/en/mahindra-truck/bolero-pickup/price/khargone
+mahindra_bolero_maxx_city_3000,Mahindra,Bolero Maxx Pik-Up,City 3000 LX,pickup,diesel,1300,2825,2523,768000,787000,2023,https://trucksbuses.com/scv/pickups-and-mini-trucks/mahindra-bolero-maxx-pikup-city-3000-lx
+mahindra_bolero_maxx_hd_1_7,Mahindra,Bolero Maxx Pik-Up,HD 1.7L VXi,pickup,diesel,1700,3480,2523,1013000,1060000,2023,https://www.trucksbuses.com/scv/pickups-and-mini-trucks/mahindra-bolero-maxx-hd-pikup-1-7l-vxi/price
+mahindra_jeeto_diesel,Mahindra,Jeeto,Diesel,mini_truck,diesel,700,1605,625,450000,546000,2015,https://trucks.tractorjunction.com/en/compare/mahindra+treo-zor-vs-mahindra+jeeto
+mahindra_jeeto_cng,Mahindra,Jeeto,CNG,mini_truck,cng,650,1550,625,500000,560000,2019,estimate
+mahindra_supro_maxi_diesel,Mahindra,Supro,Profit Truck Maxi,mini_truck,diesel,1050,2185,909,650000,729000,2021,https://www.trucksbuses.com/scv/pickups-and-mini-trucks/mahindra-supro-profit-truck-maxi/specifications
+mahindra_supro_mini_cng,Mahindra,Supro,Profit Truck Mini CNG,mini_truck,cng,750,1975,909,590000,630000,2021,estimate
+mahindra_treo_zor_pickup,Mahindra,Treo Zor,Pickup,three_wheeler,electric,550,995,,315000,362000,2020,https://evreporter.com/mahindra-electric-launches-treo-zor/
+ashok_leyland_dost_plus,Ashok Leyland,Dost,Plus,pickup,diesel,1500,2805,1478,767000,787000,2020,https://trucksbuses.com/scv/pickups-and-mini-trucks/ashok-leyland-dost-plus/specifications
+ashok_leyland_bada_dost_i4,Ashok Leyland,Bada Dost,i4,pickup,diesel,1825,3490,1478,1025500,1060000,2022,https://coachbuildersindia.com/price-of-ashok-leyland-bada-dost-i4/
+maruti_super_carry_petrol,Maruti Suzuki,Super Carry,Petrol,mini_truck,petrol,750,1620,1196,506000,530000,2018,https://tractorkarvan.com/compare-commercial-vehicle/super-carry-petrol-vs-super-carry-chassis-cng
+maruti_super_carry_cng,Maruti Suzuki,Super Carry,CNG,mini_truck,cng,625,1600,1196,537000,583000,2018,https://www.trucksbuses.com/scv/pickups-and-mini-trucks/maruti-suzuki-super-carry-cng
+maruti_eeco_cargo_petrol,Maruti Suzuki,Eeco Cargo,Petrol,cargo_van,petrol,920,1510,1197,528000,535000,2012,https://trucks.tractorjunction.com/en/maruti-suzuki-truck/eeco-cargo/price/dewas
+maruti_eeco_cargo_cng,Maruti Suzuki,Eeco Cargo,CNG,cargo_van,cng,920,1510,1197,528000,553000,2012,https://trucks.tractorjunction.com/en/maruti-suzuki-truck/eeco-cargo/price/dewas
+eicher_pro_2049_standard,Eicher,Pro 2049,Standard,lcv,diesel,2500,4995,2000,1180000,1260000,2018,estimate
+eicher_pro_2059_standard,Eicher,Pro 2059,Standard,lcv,diesel,4100,6950,1980,1516000,1661000,2019,https://www.timesdrive.in/eicher/pro-2059/specification
+tata_407_gold_sfc,Tata,407 Gold,SFC,lcv,diesel,2500,4995,2956,1108000,1278000,2012,https://www.trucksbuses.com/trucks/cargo-truck/tata-407-gold-sfc
+eicher_pro_2110_xp,Eicher,Pro 2110,XP,icv,diesel,8459,12976,3760,2077000,2159000,2019,https://www.drivespark.com/trucks/eicher/pro-2110xp/
+eicher_pro_3015_standard,Eicher,Pro 3015,Standard,icv,diesel,10690,16020,3760,2741000,2934000,2016,https://91trucks.com/trucks/eicher/pro-3015/specifications
+tata_lpt_1109_cab_chassis,Tata,LPT 1109,Cab Chassis,icv,diesel,7300,11250,3300,1850000,2050000,2012,estimate
+tata_signa_2823k_tipper,Tata,Signa 2823.K,16 Cum Box,tipper,diesel,17000,28000,5635,3966000,4884000,2018,https://www.trucksbuses.com/trucks/tipper/tata-signa-2823-k/specifications
+bharatbenz_2828c_tipper,BharatBenz,2828C,14 Cum Box,tipper,diesel,17000,28000,7200,3686000,4570000,2013,https://www.trucksbuses.com/trucks/tipper/bharatbenz-2828c
+piaggio_ape_xtra_ldx_diesel,Piaggio,Ape Xtra LDX,Diesel,three_wheeler,diesel,496,975,599,226000,248000,2014,https://trucks.tractorjunction.com/en/piaggio-truck/ape-xtra-ldx/price/jalandhar
+bajaj_maxima_c_diesel,Bajaj,Maxima C,Diesel,three_wheeler,diesel,452,965,470,283000,284000,2015,https://91trucks.com/compare-auto-rickshaws/bajaj-maxima-c-diesel-vs-piaggio-ape-xtra-ldx
+bajaj_maxima_c_cng,Bajaj,Maxima C,CNG,three_wheeler,cng,450,965,236,275000,290000,2016,estimate
