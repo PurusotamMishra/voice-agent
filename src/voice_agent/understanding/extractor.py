@@ -15,6 +15,8 @@ Fill the TurnIntent schema. Rules:
   "out_of_domain" (anything unrelated to finding a vehicle).
 - Only fill slots stated in THIS utterance. Never copy slots from the current state.
 - body_type is one of: {body_types}. fuel is one of: {fuels}. purpose is one of: {purposes}.
+- Vehicle-class names map to body_type too: "light commercial vehicle" -> lcv,
+  "intermediate commercial vehicle" -> icv.
 {hints_line}- city_mention / make_mention / model_mention: copy the words exactly as the user said them.
   Do not correct spelling, translate or guess.
 - Money is in rupees as integers (5 lakh = 500000). "under / ke andar / tak X" -> budget_max;

@@ -1,0 +1,168 @@
+# Expectation keys per turn (all optional):
+#   expect_filters: exact dict of executed hard filters ({} = none)
+#   expect_changed: exact list of slot keys changed this turn
+#   expect_changed_count: number of slot keys changed this turn
+#   expect_route: search | confirm | follow_up | which_one | reset | out_of_domain | unsupported | need_info
+#   expect_results / expect_results_min: result count (exact / at least)
+#   expect_relaxation: true/false
+#   expect_followup_rank: rank of the vehicle a follow-up resolved to
+# Every search turn with results must also pass the validator on the first try (J2).
+
+- id: en-01
+  category: english
+  turns:
+    - say: "I need a small truck under 5 lakh in Pune for city delivery"
+      expect_filters: {budget_max: 500000, body_type: mini_truck, city: pune}
+- id: en-02
+  category: english
+  turns:
+    - say: "Show me diesel pickups in Mumbai"
+      expect_filters: {fuel: diesel, body_type: pickup, city: mumbai}
+- id: en-03
+  category: english
+  turns:
+    - say: "Any CNG vehicle in Delhi below 4 lakh"
+      expect_filters: {fuel: cng, city: delhi, budget_max: 400000}
+- id: en-04
+  category: english
+  turns:
+    - say: "Electric three wheeler in Bangalore"
+      expect_filters: {fuel: electric, body_type: three_wheeler, city: bengaluru}
+- id: en-05
+  category: english
+  turns:
+    - say: "A tipper under 30 lakh in Hyderabad"
+      expect_filters: {body_type: tipper, budget_max: 3000000, city: hyderabad}
+- id: en-06
+  category: english
+  turns:
+    - say: "Tata Ace in Pune"
+      expect_filters: {make: Tata, model: Ace, city: pune}
+- id: en-07
+  category: english
+  turns:
+    - say: "Mahindra pickup in Jaipur under 6 lakh"
+      expect_filters: {make: Mahindra, body_type: pickup, city: jaipur, budget_max: 600000}
+- id: en-08
+  category: english
+  turns:
+    - say: "Around 8 lakh for a light commercial vehicle in Ahmedabad"
+      expect_filters: {budget_max: 880000, body_type: lcv, city: ahmedabad}
+- id: en-09
+  category: english
+  turns:
+    - say: "Pickup between 3 and 5 lakh in Lucknow"
+      expect_filters: {budget_min: 300000, budget_max: 500000, body_type: pickup, city: lucknow}
+- id: en-10
+  category: english
+  turns:
+    - say: "Diesel mini truck that has run less than 50,000 km in Chennai"
+      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: chennai}
+- id: en-11
+  category: english
+  turns:
+    - say: "Pickup with at least 1 ton payload in Delhi, 2018 or newer"
+      expect_filters: {body_type: pickup, min_payload_kg: 1000, city: delhi, min_year: 2018}
+- id: boundary-01
+  category: boundary
+  turns:
+    - say: "Mini truck in Pune for 5 lakh max"
+      expect_filters: {budget_max: 500000, body_type: mini_truck, city: pune}
+      expect_results_min: 1
+- id: boundary-02
+  category: boundary
+  turns:
+    - say: "Pickup in Mumbai up to 5.2 lakh"
+      expect_filters: {budget_max: 520000, body_type: pickup, city: mumbai}
+- id: correction-01
+  category: correction
+  turns:
+    - say: "CNG pickup in Mumbai under 6 lakh"
+      expect_filters: {fuel: cng, body_type: pickup, city: mumbai, budget_max: 600000}
+    - say: "No, not CNG, diesel"
+      expect_changed: [fuel]
+      expect_filters: {fuel: diesel, body_type: pickup, city: mumbai, budget_max: 600000}
+- id: correction-02
+  category: correction
+  turns:
+    - say: "Mini truck in Pune under 5 lakh"
+      expect_filters: {body_type: mini_truck, city: pune, budget_max: 500000}
+    - say: "Actually, make that Mumbai"
+      expect_changed: [city]
+      expect_filters: {body_type: mini_truck, city: mumbai, budget_max: 500000}
+- id: correction-03
+  category: correction
+  turns:
+    - say: "Diesel pickup in Delhi"
+      expect_filters: {fuel: diesel, body_type: pickup, city: delhi}
+    - say: "Keep the budget at 4 lakh max"
+      expect_changed: [budget_max]
+      expect_filters: {fuel: diesel, body_type: pickup, city: delhi, budget_max: 400000}
+- id: zero-01
+  category: zero_result
+  turns:
+    - say: "CNG pickup in Kolkata"
+      expect_filters: {fuel: cng, body_type: pickup, city: kolkata}
+      expect_results: 0
+      expect_relaxation: true
+    - say: "Yes, do that"
+      expect_changed_count: 1
+      expect_results_min: 1
+- id: zero-02
+  category: zero_result
+  turns:
+    - say: "Electric mini truck in Chennai under 3 lakh"
+      expect_filters: {fuel: electric, body_type: mini_truck, city: chennai, budget_max: 300000}
+      expect_results: 0
+      # E3: offer only a one-slot loosening that returns >= 1 row. No such loosening exists in the
+      # seeded catalog (Chennai has no mini trucks; the cheapest electric mini truck is ~6.8 lakh),
+      # so the correct behaviour is to offer nothing rather than a suggestion that also returns zero.
+      expect_relaxation: false
+- id: followup-01
+  category: follow_up
+  turns:
+    # Delhi, not Mumbai: the seeded catalog (B6) has only 1 diesel pickup in Mumbai, so
+    # "the second one" could not exist there. Delhi has 10.
+    - say: "Diesel pickup in Delhi"
+      expect_results_min: 2
+    - say: "What is the payload of the second one?"
+      expect_route: follow_up
+      expect_followup_rank: 2
+- id: followup-02
+  category: follow_up
+  turns:
+    - say: "Mini truck under 5 lakh in Pune"
+      expect_results_min: 1
+    - say: "How many kilometres has it done?"
+      expect_route: follow_up
+      expect_followup_rank: 1
+- id: adversarial-01
+  category: adversarial
+  turns:
+    - say: "Tata Aace in Pune"
+      expect_route: confirm
+    - say: "Yes"
+      expect_filters: {make: Tata, model: Ace, city: pune}
+- id: adversarial-02
+  category: adversarial
+  turns:
+    - say: "Mahindra Jeetu in Delhi"
+      expect_filters: {make: Mahindra, model: Jeeto, city: delhi}
+- id: ood-01
+  category: other
+  turns:
+    - say: "What's the weather like today?"
+      expect_route: out_of_domain
+- id: reset-01
+  category: other
+  turns:
+    - say: "Diesel pickup in Pune"
+      expect_filters: {fuel: diesel, body_type: pickup, city: pune}
+    - say: "Let's start over"
+      expect_route: reset
+      expect_filters: {}
+- id: purpose-01
+  category: other
+  turns:
+    - say: "I need something for city delivery in Mumbai under 4 lakh"
+      expect_filters: {city: mumbai, budget_max: 400000}

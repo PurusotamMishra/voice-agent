@@ -96,3 +96,11 @@ def test_prompt_omits_empty_hints_line() -> None:
     assert "Phrase hints" not in empty
     assert "Phrase hints" in build_system_prompt(ALIASES)
     assert "never budget_max" in empty and "pending_question" in empty
+
+
+def test_prompt_maps_vehicle_class_names_to_body_type() -> None:
+    from voice_agent.understanding.extractor import build_system_prompt
+
+    prompt = build_system_prompt({k: {} for k in AliasKind})
+    assert '"light commercial vehicle" -> lcv' in prompt
+    assert '"intermediate commercial vehicle" -> icv' in prompt
