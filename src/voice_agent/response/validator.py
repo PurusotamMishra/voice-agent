@@ -26,6 +26,9 @@ _NUMBER_WORDS = re.compile(
 _SCALE_WORDS = re.compile(r"(?<!\d)(?<!\d )\b(lakhs?|lacs?|crores?|million|thousand|hazaar)\b")
 # Body-type words ("three-wheeler") are honest descriptions, not numeric claims.
 _BODY_TYPE_WORDS = re.compile(r"\b(three|four)[- ]wheelers?\b")
+# Listing ids are internal keys, never spoken; stripped before the number check so the
+# digits are not reported twice.
+_LISTING_ID = re.compile(r"\bVH-\d+\b", re.IGNORECASE)
 _FUEL_WORD = re.compile(r"\b(diesel|petrol|cng|electric)\b", re.IGNORECASE)
 _CITY_WORD = re.compile(r"\b(" + "|".join(c.value for c in City) + r")\b", re.IGNORECASE)
 
@@ -107,7 +110,11 @@ def _city_fuel(text: str, city: str, fuel: str, where: str) -> list[Violation]:
 
 
 def _numbers(text: str, allowed: set[tuple[str, str]], where: str) -> list[Violation]:
-    out: list[Violation] = []
+    out = [
+        Violation(where=where, kind="number", detail=f"listing id {m.group(0)} in spoken text")
+        for m in _LISTING_ID.finditer(text)
+    ]
+    text = _LISTING_ID.sub(" ", text)
     allowed_values = {v for v, _ in allowed}
     for value, unit in sorted(set(numbers_with_units(text))):
         if (value, unit) in allowed:

@@ -24,7 +24,7 @@ uv run ruff format . && uv run ruff check .
 uv run mypy src
 uv run python eval/run_eval.py            # live eval (needs GROQ_API_KEY)
 python scripts/generate_catalog.py        # regenerate data/listings.csv (deterministic)
-docker compose up --build                 # full stack: ui :5173→nginx, app :8000, db :5432
+docker compose up --build                 # full stack: ui :5173→nginx, app :8000, db :5433 (host port; 5432 in the container)
 cd ui && npm run dev | npm run lint | npm run build
 ```
 

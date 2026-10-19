@@ -53,4 +53,6 @@ async def test_system_prompt_states_unit_rule_and_outage_attempts() -> None:
     out = await compose_results(FACTS, llm, VOCAB)
     assert "with their unit attached" in llm.calls[0][0]
     assert "no comparatives" in llm.calls[0][0].lower()
+    assert "only in the item's listing_id field" in llm.calls[0][0]
+    assert "never write a listing id" in llm.calls[0][0].lower()
     assert out.attempts == 1

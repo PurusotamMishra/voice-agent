@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 from voice_agent.config import Settings
 from voice_agent.domain.ports import LLM, LLMResult, ProviderError, Usage
@@ -60,14 +60,22 @@ class FailoverLLM:
             return await self._fallback.structured(system, user, schema)
 
 
+def _secret(secret: SecretStr | None) -> SecretStr | None:
+    """An empty `KEY=` line in .env yields SecretStr(''): treat it as unset."""
+    if secret is None or not secret.get_secret_value().strip():
+        return None
+    return secret
+
+
 def _groq(settings: Settings) -> LLM | None:
-    if settings.groq_api_key is None:
+    api_key = _secret(settings.groq_api_key)
+    if api_key is None:
         return None
     from langchain_groq import ChatGroq
 
     chat = ChatGroq(
         model_name=settings.groq_model,
-        api_key=settings.groq_api_key,
+        api_key=api_key,
         temperature=0,
         max_retries=2,
         timeout=15,
@@ -76,13 +84,14 @@ def _groq(settings: Settings) -> LLM | None:
 
 
 def _gemini(settings: Settings) -> LLM | None:
-    if settings.gemini_api_key is None:
+    api_key = _secret(settings.gemini_api_key)
+    if api_key is None:
         return None
     from langchain_google_genai import ChatGoogleGenerativeAI
 
     chat = ChatGoogleGenerativeAI(
         model=settings.gemini_model,
-        google_api_key=settings.gemini_api_key.get_secret_value(),
+        google_api_key=api_key.get_secret_value(),
         temperature=0,
         max_retries=2,
         timeout=15,

@@ -2,8 +2,9 @@ import pytest
 from pydantic import BaseModel
 
 from tests.fakes import FakeLLM
+from voice_agent.config import Settings
 from voice_agent.domain.ports import ProviderError
-from voice_agent.providers.llm import FailoverLLM, LangChainLLM
+from voice_agent.providers.llm import FailoverLLM, LangChainLLM, make_llm
 
 
 class Out(BaseModel):
@@ -40,3 +41,10 @@ async def test_langchain_llm_normalises_structured_output_setup_errors() -> None
     llm = LangChainLLM("groq", _BadSchemaChat())  # type: ignore[arg-type]
     with pytest.raises(ProviderError):
         await llm.structured("s", "u", Out)
+
+
+@pytest.mark.parametrize("blank", ["", "  "])
+def test_empty_fallback_key_is_treated_as_absent(blank: str) -> None:
+    settings = Settings(_env_file=None, groq_api_key="x", gemini_api_key=blank)  # type: ignore[arg-type,call-arg]
+    llm = make_llm(settings)
+    assert isinstance(llm, FailoverLLM) and llm._fallback is None

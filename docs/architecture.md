@@ -98,9 +98,6 @@ class ScoredListing(BaseModel):    # listing + score + contributions: dict[str, 
 ## 5. Turn pipeline (LangGraph, `src/voice_agent/graph/`)
 
 ```
-            ┌────────────┐
- audio ───► │ stt        │──┐ (skipped for typed input / eval text cases)
-            └────────────┘  ▼
                      ┌──────────────┐
  text ─────────────► │ understand   │  numbers.py + extractor (LLM tool call) + normalizer
                      └──────┬───────┘  → TurnIntent{intent, slot_updates, reference, confidences}
@@ -118,9 +115,9 @@ class ScoredListing(BaseModel):    # listing + score + contributions: dict[str, 
           └───────────┴───────────────┴────────────────┬───────────────┘
                                                        ▼
                                    compose ─► validate ─► (fail: regenerate once ─► template)
-                                                       ▼
-                                                 tts (per sentence, streamed)
 ```
+
+> STT and TTS run in the API layer around the graph (Plan 2): `audio → STT → TurnRunner.run(text) → TTS per sentence`. The graph is text-in/text-out, so the eval and CLI exercise exactly the same graph as the voice path.
 
 - Nodes are thin: each calls one component function and writes its result into graph state.
 - Conditional edges implement routing; **no LLM decides routing** beyond the intent label from `understand`.

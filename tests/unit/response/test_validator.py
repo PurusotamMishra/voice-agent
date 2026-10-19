@@ -157,3 +157,16 @@ def test_wheeler_body_type_words_are_not_number_words() -> None:
     assert not _bad("Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto four wheeler at ₹3 lakh.")
     assert _bad("Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto, three owners, ₹3 lakh.")
     assert _bad("Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto three-wheeler, two owners.")
+
+
+def test_listing_id_in_spoken_text_is_caught() -> None:
+    v = validate(
+        resp("VH-0077: the Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto at ₹3 lakh."),
+        FACTS,
+        VOCAB,
+    )
+    assert [(x.where, x.kind, x.detail) for x in v.violations] == [
+        ("A", "number", "listing id VH-0077 in spoken text")
+    ]
+    v2 = validate(resp("Tata Ace Gold.", "Jeeto.", intro="Options vh-12 here."), FACTS, VOCAB)
+    assert [(x.where, x.kind) for x in v2.violations] == [("intro", "number")]

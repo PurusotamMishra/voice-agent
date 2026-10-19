@@ -5,9 +5,10 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from voice_agent.catalog.filters import constraint_violations
 from voice_agent.domain.enums import AliasKind, BodyType, City, Fuel, SellerType
-from voice_agent.domain.models import Listing
-from voice_agent.domain.ports import LLMResult, Match, Usage
+from voice_agent.domain.models import Filters, Listing
+from voice_agent.domain.ports import LLMResult, Match, SearchResult, Usage
 
 _DEFAULTS: dict[str, Any] = {
     "listing_id": "VH-0001",
@@ -70,3 +71,20 @@ class FakeNormalizer:
             score=hit[1],
             method="exact" if hit[1] == 1.0 else "trigram",
         )
+
+
+class FakeCatalog:
+    """In-memory Catalog using the same constraint logic as the SQL builder."""
+
+    def __init__(self, listings: list[Listing]) -> None:
+        self._listings = listings
+
+    async def search(self, filters: Filters, limit: int = 500) -> SearchResult:
+        rows = [x for x in self._listings if not constraint_violations(x, filters)][:limit]
+        return SearchResult(rows=rows, sql="-- fake", params=filters.as_dict())
+
+    async def count(self, filters: Filters) -> int:
+        return len((await self.search(filters)).rows)
+
+    async def get(self, listing_id: str) -> Listing | None:
+        return next((x for x in self._listings if x.listing_id == listing_id), None)
