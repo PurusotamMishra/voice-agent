@@ -24,6 +24,8 @@ _NUMBER_WORDS = re.compile(
 )
 # Scale words are fine only directly after a digit ("4.85 lakh").
 _SCALE_WORDS = re.compile(r"(?<!\d)(?<!\d )\b(lakhs?|lacs?|crores?|million|thousand|hazaar)\b")
+# Body-type words ("three-wheeler") are honest descriptions, not numeric claims.
+_BODY_TYPE_WORDS = re.compile(r"\b(three|four)[- ]wheelers?\b")
 _FUEL_WORD = re.compile(r"\b(diesel|petrol|cng|electric)\b", re.IGNORECASE)
 _CITY_WORD = re.compile(r"\b(" + "|".join(c.value for c in City) + r")\b", re.IGNORECASE)
 
@@ -112,7 +114,7 @@ def _numbers(text: str, allowed: set[tuple[str, str]], where: str) -> list[Viola
             continue
         detail = value if value not in allowed_values else f"{value} {unit or '(no unit)'}"
         out.append(Violation(where=where, kind="number", detail=detail))
-    lowered = text.lower()
+    lowered = _BODY_TYPE_WORDS.sub(" ", text.lower())
     out += [
         Violation(where=where, kind="number_word", detail=m.group(0))
         for rx in (_NUMBER_WORDS, _SCALE_WORDS)

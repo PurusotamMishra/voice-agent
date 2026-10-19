@@ -148,3 +148,12 @@ def test_extra_number_words_fail() -> None:
         "Tata Ace Gold, bees.",
     ]:
         assert _bad(s), s
+
+
+def test_wheeler_body_type_words_are_not_number_words() -> None:
+    assert not _bad(
+        "The Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto three-wheeler at ₹3 lakh."
+    )
+    assert not _bad("Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto four wheeler at ₹3 lakh.")
+    assert _bad("Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto, three owners, ₹3 lakh.")
+    assert _bad("Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto three-wheeler, two owners.")
