@@ -1,0 +1,6 @@
+# E2: score = Σ weight × feature, each feature normalised to [0, 1] within the candidate set.
+price: 0.30            # cheaper is better (or closer to target for "around X")
+low_km: 0.20
+newer_year: 0.20
+papers_verified: 0.15
+purpose_fit: 0.15      # B4: purpose is a ranking signal, never a filter
