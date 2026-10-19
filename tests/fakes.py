@@ -5,9 +5,9 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from voice_agent.domain.enums import BodyType, City, Fuel, SellerType
+from voice_agent.domain.enums import AliasKind, BodyType, City, Fuel, SellerType
 from voice_agent.domain.models import Listing
-from voice_agent.domain.ports import LLMResult, Usage
+from voice_agent.domain.ports import LLMResult, Match, Usage
 
 _DEFAULTS: dict[str, Any] = {
     "listing_id": "VH-0001",
@@ -51,4 +51,22 @@ class FakeLLM:
             raise item
         return LLMResult(
             value=item, usage=Usage(provider=self.name, input_tokens=10, output_tokens=5)
+        )
+
+
+class FakeNormalizer:
+    """table[(kind, raw_lower)] = (canonical, score); anything else -> no match."""
+
+    def __init__(self, table: dict[tuple[AliasKind, str], tuple[str, float]]) -> None:
+        self._table = table
+
+    async def normalize(self, kind: AliasKind, raw: str) -> Match:
+        hit = self._table.get((kind, raw.strip().lower()))
+        if hit is None:
+            return Match(raw=raw, canonical=None, score=0.0, method="none")
+        return Match(
+            raw=raw,
+            canonical=hit[0],
+            score=hit[1],
+            method="exact" if hit[1] == 1.0 else "trigram",
         )
