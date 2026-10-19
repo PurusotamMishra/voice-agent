@@ -3,8 +3,11 @@
 from datetime import date
 from typing import Any
 
+from pydantic import BaseModel
+
 from voice_agent.domain.enums import BodyType, City, Fuel, SellerType
 from voice_agent.domain.models import Listing
+from voice_agent.domain.ports import LLMResult, Usage
 
 _DEFAULTS: dict[str, Any] = {
     "listing_id": "VH-0001",
@@ -31,3 +34,21 @@ _DEFAULTS: dict[str, Any] = {
 
 def make_listing(**overrides: Any) -> Listing:
     return Listing(**{**_DEFAULTS, **overrides})
+
+
+class FakeLLM:
+    """Returns queued responses in order; an Exception in the queue is raised instead."""
+
+    def __init__(self, responses: list[BaseModel | Exception], name: str = "fake") -> None:
+        self.name = name
+        self._responses = list(responses)
+        self.calls: list[tuple[str, str, type[BaseModel]]] = []
+
+    async def structured(self, system: str, user: str, schema: type[Any]) -> LLMResult[Any]:
+        self.calls.append((system, user, schema))
+        item = self._responses.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return LLMResult(
+            value=item, usage=Usage(provider=self.name, input_tokens=10, output_tokens=5)
+        )
