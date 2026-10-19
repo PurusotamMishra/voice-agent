@@ -528,7 +528,16 @@ def validate_reference_files(models_by_id: dict[str, VehicleModel]) -> None:
     aliases = read_csv(ALIASES_CSV)
     check(80 <= len(aliases) <= 150, f"80-150 alias rows (got {len(aliases)})")
     check(all(a["kind"] in ALIAS_KINDS for a in aliases), "all alias kinds valid")
-    bad = [a for a in aliases if a["canonical"] not in canonical_sets.get(a["kind"], set())]
+    def canonical_ok(a: dict[str, str]) -> bool:
+        if a["kind"] == "model":
+            # Family aliases ("Ace") are valid when they prefix at least one real model.
+            return any(
+                m == a["canonical"] or m.startswith(a["canonical"] + " ")
+                for m in canonical_sets["model"]
+            )
+        return a["canonical"] in canonical_sets.get(a["kind"], set())
+
+    bad = [a for a in aliases if not canonical_ok(a)]
     check(not bad, f"every alias canonical exists in models.csv / enums / city list (bad: {bad[:3]})")
     keys = [(a["alias"], a["kind"]) for a in aliases]
     check(len(keys) == len(set(keys)), "no duplicate (alias, kind) pairs")
