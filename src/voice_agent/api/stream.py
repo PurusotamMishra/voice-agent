@@ -111,6 +111,9 @@ async def _transcribe(svc: VoiceServices, inp: TurnInput, t: _Turn) -> tuple[str
         t.fallbacks.append("stt_error")
         return "", _transcript_event("", "stt", choice.stt.name, None, None)
     t.timings["stt"] = sw.ms
+    if tr.provider != choice.stt.name:
+        log.warning("stt served by %s instead of %s", tr.provider, choice.stt.name)
+        t.fallbacks.append("stt_failover")
     seconds = tr.audio_seconds or inp.audio_seconds
     t.usage.append(Usage(provider=f"{tr.provider}-stt", audio_seconds=seconds))
     if not tr.text:

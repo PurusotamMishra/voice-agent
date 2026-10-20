@@ -1,13 +1,16 @@
-"""Speech-to-text providers (H2, N3): Groq Whisper for English, Sarvam Saaras for Hinglish."""
+"""Speech-to-text providers (H2, N3, N14): Sarvam Saaras when keyed, Groq Whisper otherwise."""
 
+import logging
 import math
 from typing import Any
 
 import httpx
 
 from voice_agent.config import Settings, key
-from voice_agent.domain.ports import ProviderError, SttChoice, Transcript
+from voice_agent.domain.ports import ProviderError, SpeechToText, SttChoice, Transcript
 from voice_agent.providers.http import json_body, post_with_retry
+
+log = logging.getLogger(__name__)
 
 GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 SARVAM_URL = "https://api.sarvam.ai/speech-to-text"
@@ -106,18 +109,38 @@ class SarvamSTT:
             raise ProviderError(self.name, "invalid response body", retryable=False) from exc
 
 
+class FailoverSTT:
+    """Tries the primary; on ProviderError tries the fallback once. Transcript.provider shows who served."""
+
+    def __init__(self, primary: SpeechToText, fallback: SpeechToText) -> None:
+        self.name = primary.name
+        self._primary, self._fallback = primary, fallback
+
+    async def transcribe(self, audio: bytes, filename: str, content_type: str) -> Transcript:
+        try:
+            return await self._primary.transcribe(audio, filename, content_type)
+        except ProviderError as exc:
+            log.warning("stt failover %s -> %s: %s", self._primary.name, self._fallback.name, exc)
+            return await self._fallback.transcribe(audio, filename, content_type)
+
+
 def make_stt(settings: Settings, client: httpx.AsyncClient) -> dict[str, SttChoice]:
-    """Input language -> STT (N3). Missing keys shrink the map; the UI's typed input still works."""
+    """Input language -> STT (N3, N14). With a Sarvam key, Sarvam serves both languages, so a
+    buyer can switch language mid-conversation; Groq Whisper is the failover. Missing keys
+    shrink the map; the UI's typed input still works."""
     choices: dict[str, SttChoice] = {}
     groq_key, sarvam_key = key(settings.groq_api_key), key(settings.sarvam_api_key)
+    groq_en = groq_hinglish = None
     if groq_key:
-        choices["en"] = SttChoice(GroqSTT(groq_key, settings.groq_stt_model, client))
-    if sarvam_key:
-        sarvam = SarvamSTT(sarvam_key, settings.sarvam_stt_model, settings.sarvam_stt_mode, client)
-        choices["hi-en"] = SttChoice(sarvam)
-    elif groq_key:
+        groq_en = GroqSTT(groq_key, settings.groq_stt_model, client)
         groq_hinglish = GroqSTT(
             groq_key, settings.groq_stt_model, client, language=None, prompt=HINGLISH_PROMPT
         )
+    if sarvam_key:
+        sarvam = SarvamSTT(sarvam_key, settings.sarvam_stt_model, settings.sarvam_stt_mode, client)
+        for lang, groq in (("en", groq_en), ("hi-en", groq_hinglish)):
+            choices[lang] = SttChoice(FailoverSTT(sarvam, groq) if groq else sarvam)
+    elif groq_en and groq_hinglish:
+        choices["en"] = SttChoice(groq_en)
         choices["hi-en"] = SttChoice(groq_hinglish, ("stt_hinglish_groq",))
     return choices

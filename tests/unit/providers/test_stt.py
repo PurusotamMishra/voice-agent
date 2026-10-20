@@ -2,9 +2,10 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
+from tests.fakes import FakeSTT
 from voice_agent.config import Settings
 from voice_agent.domain.ports import ProviderError
-from voice_agent.providers.stt import GroqSTT, SarvamSTT, make_stt
+from voice_agent.providers.stt import FailoverSTT, GroqSTT, SarvamSTT, make_stt
 
 
 def _client(body: dict[str, object], seen: list[httpx.Request]) -> httpx.AsyncClient:
@@ -96,12 +97,32 @@ def _settings(**kw: object) -> Settings:
     return Settings(_env_file=None, **kw)  # type: ignore[call-arg, arg-type]
 
 
-async def test_make_stt_prefers_sarvam_for_hinglish() -> None:
+async def test_make_stt_uses_sarvam_for_both_languages_with_groq_failover() -> None:
     s = _settings(groq_api_key=SecretStr("g"), sarvam_api_key=SecretStr("s"))
     async with httpx.AsyncClient() as client:
         choices = make_stt(s, client)
-    assert choices["en"].stt.name == "groq" and choices["hi-en"].stt.name == "sarvam"
-    assert choices["hi-en"].fallbacks == ()
+    for lang in ("en", "hi-en"):
+        assert isinstance(choices[lang].stt, FailoverSTT)
+        assert choices[lang].stt.name == "sarvam" and choices[lang].fallbacks == ()
+
+
+async def test_make_stt_sarvam_only_has_no_failover() -> None:
+    async with httpx.AsyncClient() as client:
+        choices = make_stt(_settings(sarvam_api_key=SecretStr("s")), client)
+    assert isinstance(choices["en"].stt, SarvamSTT) and isinstance(choices["hi-en"].stt, SarvamSTT)
+
+
+async def test_failover_stt_uses_fallback_on_provider_error() -> None:
+    down = FakeSTT(error=ProviderError("sarvam", "down"), name="sarvam")
+    tr = await FailoverSTT(down, FakeSTT("hello", name="groq")).transcribe(
+        b"a", "a.wav", "audio/wav"
+    )
+    assert tr.provider == "groq" and tr.text == "hello"
+
+
+async def test_failover_stt_returns_primary_when_it_works() -> None:
+    stt = FailoverSTT(FakeSTT("namaste", name="sarvam"), FakeSTT("x", name="groq"))
+    assert (await stt.transcribe(b"a", "a.wav", "audio/wav")).provider == "sarvam"
 
 
 async def test_make_stt_falls_back_to_groq_for_hinglish() -> None:

@@ -5,6 +5,7 @@ from tests.fakes import FakeSTT, FakeTTS
 from voice_agent.api.stream import STT_FAILED_TEXT, TurnInput, VoiceServices, run_turn
 from voice_agent.domain.ports import ProviderError, SttChoice
 from voice_agent.graph.runner import TurnResult
+from voice_agent.providers.stt import FailoverSTT
 from voice_agent.response.schema import ComposedResponse, ItemSentence, Verdict
 
 
@@ -79,6 +80,13 @@ async def test_stt_failure_speaks_apology_and_skips_runner() -> None:
     assert [e["type"] for e in ev] == ["transcript", "sentence", "done"]
     assert ev[1]["text"] == STT_FAILED_TEXT and "stt_error" in ev[-1]["fallback_used"]
     assert ev[-1]["turn"] is None and ev[-1]["verdict"] is None
+
+
+async def test_stt_served_by_another_provider_records_stt_failover() -> None:
+    down = FakeSTT(error=ProviderError("sarvam", "down"), name="sarvam")
+    stt = {"en": SttChoice(FailoverSTT(down, FakeSTT("Tata Ace in Pune", name="groq")))}
+    ev = await _events(_svc(stt=stt), TurnInput(session_id="s", audio=b"a"))
+    assert ev[0]["provider"] == "groq" and "stt_failover" in ev[-1]["fallback_used"]
 
 
 async def test_empty_transcript_is_a_recorded_fallback() -> None:

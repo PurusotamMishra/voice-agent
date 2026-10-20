@@ -376,7 +376,7 @@ One item already answered because it affects instrumentation:
 - **N2 — Sentence-level TTS.** DECIDED. One vendor call per sentence, returning complete MP3 bytes. Each `sentence` NDJSON event carries `audio_b64`. `TTS_MODE=sentence|whole` lets J5 compare the two; "whole" means one call for the full text.
   - *Rejected:* streaming raw audio chunks over the NDJSON channel.
   - *Why:* complete MP3 per sentence is simple to queue in the browser and keeps the validator-then-speak order (H4). Cost if wrong: the first sentence still waits for its own full synthesis (a few hundred ms).
-- **N3 — STT is chosen per request by the `language` form field.** DECIDED.
+- **N3 — STT is chosen per request by the `language` form field.** DECIDED. *Superseded by N14 when `SARVAM_API_KEY` is set; it still holds without one.*
   - `en` → `GroqSTT` (`whisper-large-v3`, `language=en`).
   - `hi-en` → `SarvamSTT` (`saaras:v3`, mode `translit`) when `SARVAM_API_KEY` is set.
   - Otherwise `hi-en` → `GroqSTT` with no language and a Roman-script prompt, recording fallback `stt_hinglish_groq`.
@@ -414,3 +414,8 @@ One item already answered because it affects instrumentation:
 - **N13 — Reply language is decided in code, not by the LLM.** DECIDED. `understanding/language.py` marks a turn Hinglish if it contains Devanagari or a Roman-script Hindi grammar word ("mein", "chahiye", "dikhao", "nahi", ...); otherwise English. The pipeline overwrites the LLM's `language` field with it, also on the rules fallback.
   - *Rejected:* the LLM's own `language` field (with a sharper prompt).
   - *Why:* in live runs the LLM tagged plain English with "lakh" or an Indian city ("Diesel pickup in Delhi under 8 lakh") as Hinglish and replied in Hinglish. A word list is deterministic, unit-tested and explainable, and the rules fallback previously always said English. Cost if wrong: a Hinglish turn with no listed Hindi word (e.g. "Pune, 5 lakh, Tata Ace") gets an English reply, which a code-switching buyer still understands (N1).
+  - Note: this works on the transcript. If STT translates Hindi speech to English (Whisper with `language=en` does), the reply is English; N14 removes that case when Sarvam is keyed.
+- **N14 — With a Sarvam key, Sarvam transcribes all speech; Groq Whisper is the failover.** DECIDED (2026-10-20, after the live mic test).
+  - `make_stt` maps both `en` and `hi-en` to `FailoverSTT(SarvamSTT, GroqSTT)`; the Groq side keeps the N3 flavour for the chosen language. A turn served by Groq records `stt_failover`. Without a Sarvam key, N3 applies unchanged.
+  - *Rejected:* (a) keeping the UI dropdown as the STT switch; (b) Whisper with no forced language first, re-sending Hindi/Urdu turns to Sarvam.
+  - *Why:* in the mic test the buyer switched to Hindi with the dropdown still on English. Whisper with `language=en` translated the Hindi into English, so the slots and reply were English and nothing flagged it. On the 5 eval clips Sarvam `translit` got all 3 English clips right (better than Whisper on "five lakh") and both Hinglish clips in Roman script, at 120–300 ms against Whisper's 220–570 ms. (b) costs two STT calls on Hindi turns and rests on Whisper's language guess. Cost if wrong: Sarvam is paid (about ₹0.04 a 5-second turn) and the English comparison is 3 synthetic clips; on a Sarvam outage the dropdown again decides how Groq transcribes.

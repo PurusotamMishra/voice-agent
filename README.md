@@ -10,7 +10,7 @@ Seven components (brief section 2), in the order a turn passes through them:
 [1] Voice interface   browser: hold-to-talk recorder, typed fallback, audio queue, panels
         |  POST /api/turn (audio or text)          ^ NDJSON events (transcript, understanding, search, sentence, done)
         v                                          |
-[2] STT               Groq Whisper (English) | Sarvam Saaras or Groq Whisper (Hinglish)
+[2] STT               Sarvam Saaras (both languages), Groq Whisper failover; Groq Whisper only without a Sarvam key
 [3] Understanding     LLM slot extraction + deterministic number parser + alias normaliser
 [6] Conversation state  slots, one-slot corrections, references ("the second one"), Postgres checkpoints
 [4] Catalog + search  Filters -> parameterized SQL -> ranker (or a relaxation probe on zero rows)
@@ -34,7 +34,7 @@ Then open http://localhost:5173 and allow the microphone.
 |---|---|---|
 | `GROQ_API_KEY` | yes (LLM, English STT) | nothing works |
 | `ELEVENLABS_API_KEY` | no, server voice | the browser speaks the answer (`tts_client` fallback) |
-| `SARVAM_API_KEY` | no, Hinglish STT | Hinglish audio goes to Groq Whisper with a Roman-script prompt (`stt_hinglish_groq` fallback) |
+| `SARVAM_API_KEY` | no, but recommended | With it, Sarvam transcribes all speech, English and Hinglish, so the buyer can switch language mid-conversation; Groq Whisper takes over if Sarvam fails (`stt_failover`). Without it, the dropdown picks Groq Whisper for English or Whisper with a Roman-script prompt for Hinglish (`stt_hinglish_groq`) |
 | `GEMINI_API_KEY` | no, LLM failover | no failover when Groq errors; the rules-only extractor still runs |
 
 Compose starts `db` (host port 5433), `app` (port 8000) and `ui` (nginx, port 5173). The catalog is seeded on first boot. `.env` is never committed.
@@ -53,7 +53,7 @@ Checks: `uv run pytest`, `uv run ruff format . && uv run ruff check .`, `uv run 
 ## 4. Using it
 
 - Hold the **Hold to talk** button, speak, release. The transcript, slots, executed SQL, top three with score breakdown, validator verdict and latency stages fill in as events arrive, and the answer plays sentence by sentence.
-- The dropdown next to the button picks the input language: **English** or **Hinglish**. It decides which STT runs.
+- The dropdown next to the button picks the input language: **English** or **Hinglish**. With `SARVAM_API_KEY` set it only matters on fallbacks (the browser voice, and how Groq Whisper transcribes if Sarvam fails); you can switch language mid-conversation without touching it. Without the key it decides which STT runs, so switch it before speaking Hindi: Whisper set to English translates Hindi speech into English.
 - If the microphone is unavailable, type in the box and press Send. Typed input skips STT.
 
 Example conversation (utterances to try, not recorded output):
@@ -80,7 +80,7 @@ Numbers so far:
 - Text loop, 25 cases: 25/25, constraint safety 100% (2026-10-19).
 - Hinglish category, 7 cases: 7/7 on the first run.
 - Full 32-case run on the smaller models (`GROQ_MODEL=openai/gpt-oss-20b`, `GROQ_COMPOSE_MODEL=qwen/qwen3.8-27b`, used because the day's `gpt-oss-120b` token allowance was spent): 26/32 = 81%, constraint safety 98.4% (2026-10-20, `eval/results/alt-models-2026-10-20.md`). Four failures are replies that passed the validator only on regeneration (safe, but the eval wants a clean first try); two are "Tata Ace" read as a body type, one of which also dropped the make. The NLU p50 fell from 5.7 s to 0.63 s.
-- Audio eval (5 ElevenLabs Flash clips, synthetic stand-ins, not real recordings): 3/5. English 3/3, including the noisy clip. Hinglish through Groq Whisper 0/2: Whisper wrote one clip in Devanagari and the other in Urdu script, so no slots were parsed. Sarvam `translit` (N3) is the fix; it needs `SARVAM_API_KEY`.
+- Audio eval (5 ElevenLabs Flash clips, synthetic stand-ins, not real recordings), 2026-10-20: 4/7 clip × provider runs. English 3/3 through Groq, including the noisy clip. Hinglish through Sarvam: both transcripts in Roman script (WER 0.11 and 0.0); `hi-01` passes, `hi-02` has the right filters but its reply passed the validator only on regeneration. Hinglish through Groq Whisper 0/2: Devanagari and Urdu script, so no slots were parsed. Sarvam on the English clips (outside the harness): 3/3 transcribed correctly, 120–300 ms against Whisper's 220–570 ms (N14).
 
 ## 6. Latency and cost
 
@@ -121,7 +121,7 @@ Why each choice was made, with the rejected alternative: [docs/decisions.md](doc
 - A single-letter mishear (for example "S" for "Ace") cannot be matched by trigrams (decisions D2, F3).
 - Groq free tier: 8,000 tokens per minute per model, about 3 turns a minute. This is the first bottleneck and part of why eval latency is high (decisions M4).
 - The audio eval clips are synthetic stand-ins (N7), so STT results will be optimistic. WER is brittle for Devanagari output and digits versus words.
-- Without `SARVAM_API_KEY`, Hinglish speech goes to Groq Whisper, which often returns Devanagari or Urdu script; the parser and aliases are Roman script, so those turns lose their slots. Typed Hinglish works.
+- Without `SARVAM_API_KEY` (or during a Sarvam outage), Hinglish speech goes to Groq Whisper, which often returns Devanagari or Urdu script; the parser and aliases are Roman script, so those turns lose their slots. Typed Hinglish works.
 - Groq free tier also caps each model at 200,000 tokens a day. One full eval uses 100–150k, so a second run in a day can fall back to rules and templates.
 - The listing catalog is synthetic (see `CITATIONS.md`).
 - `/api/health` does not ping the database after startup (N10).

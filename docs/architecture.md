@@ -172,7 +172,7 @@ class TextToSpeech(Protocol):   # ElevenLabsTTS; None means the browser speaks
     async def synthesize(self, text: str) -> bytes: ...   # complete MP3 bytes (N2)
 ```
 
-Providers are chosen in `config.py` from env (`LLM_PROVIDER`, `LLM_FALLBACK_PROVIDER`, `GROQ_MODEL`, `GEMINI_MODEL`, and for voice `GROQ_STT_MODEL`, `SARVAM_API_KEY`, `ELEVENLABS_API_KEY`, `TTS_MODE`); STT is picked per request by language (N3); unit tests use the fakes in `tests/fakes.py`.
+Providers are chosen in `config.py` from env (`LLM_PROVIDER`, `LLM_FALLBACK_PROVIDER`, `GROQ_MODEL`, `GEMINI_MODEL`, and for voice `GROQ_STT_MODEL`, `SARVAM_API_KEY`, `ELEVENLABS_API_KEY`, `TTS_MODE`); STT is Sarvam for every request when keyed, with Groq failover (N14), otherwise picked per request by language (N3); unit tests use the fakes in `tests/fakes.py`.
 
 ## 7. Understanding details (D1–D7, `understanding/pipeline.py`)
 
@@ -252,7 +252,8 @@ Tables: `listings` (index on `(body_type, fuel, city, price_inr)`), `aliases(ali
 |---|---|---|
 | Mic denied / broken | browser error | typed input box |
 | STT error/timeout/empty | `ProviderError` or empty text | spoken "Sorry, I didn't catch that" (`transcript` → `sentence` → `done`, see §10); state unchanged; `stt_error` / `stt_empty` |
-| No Sarvam key for Hinglish | `make_stt` | Groq Whisper with a Roman-script prompt; `stt_hinglish_groq` |
+| Sarvam STT error/timeout | `ProviderError` in `FailoverSTT` | same audio to Groq Whisper (dropdown picks English or Roman-script Hinglish prompt); `stt_failover` (N14) |
+| No Sarvam key | `make_stt` | Groq Whisper for English; Hinglish gets a Roman-script prompt; `stt_hinglish_groq` |
 | LLM 429/5xx/timeout | `ProviderError` after backoff | failover to alternate LLM → else rules-only extractor / template composer |
 | Validator fails twice | `Verdict.ok == False` | deterministic template response |
 | TTS quota/outage, empty audio, or no key | `ProviderError` / empty bytes / `tts is None` | `tts: "client"` → browser `speechSynthesis`; `tts_client` (N12) |
