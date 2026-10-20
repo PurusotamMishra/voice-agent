@@ -10,6 +10,10 @@ import { SlotsPanel } from "./panels/SlotsPanel";
 import { SqlPanel } from "./panels/SqlPanel";
 import { VerdictPanel } from "./panels/VerdictPanel";
 
+// No language picker (N14): Sarvam transcribes both languages, and "hi-en" lets the Groq
+// failover auto-detect instead of translating Hindi into English. The reply language is set in code (N13).
+const INPUT_LANGUAGE: Language = "hi-en";
+
 interface Pending {
   speechEnd: number;
   turnId: string | null;
@@ -19,7 +23,6 @@ interface Pending {
 
 export default function App() {
   const [session, setSession] = useState<string | null>(null);
-  const [language, setLanguage] = useState<Language>("en");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
@@ -57,6 +60,7 @@ export default function App() {
         break;
       case "understanding":
         setUnderstanding(e);
+        queue.current.lang = e.language === "hi-en" ? "hi-IN" : "en-IN"; // browser voice only
         break;
       case "search":
         setSearch(e);
@@ -76,9 +80,8 @@ export default function App() {
   const runTurn = async (form: FormData, speechEnd: number) => {
     if (!session) return;
     form.append("session_id", session);
-    form.append("language", language);
+    form.append("language", INPUT_LANGUAGE);
     queue.current.reset();
-    queue.current.lang = language === "hi-en" ? "hi-IN" : "en-IN";
     pending.current = { speechEnd, turnId: null, firstAudio: null, posted: false };
     queue.current.onFirstPlay = (ms) => {
       if (pending.current) pending.current.firstAudio = ms;
@@ -165,15 +168,6 @@ export default function App() {
                 {recording ? "Listening" : busy ? "Working on it" : "Hold to talk"}
                 <span>{recording ? "Release to send" : busy ? "The answer plays as it arrives" : "Press, speak, release"}</span>
               </div>
-              <select
-                className="lang"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as Language)}
-                aria-label="Input language"
-              >
-                <option value="en">English</option>
-                <option value="hi-en">Hinglish</option>
-              </select>
             </div>
             <form className="typed" onSubmit={onType}>
               <input

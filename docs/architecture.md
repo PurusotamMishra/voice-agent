@@ -252,7 +252,7 @@ Tables: `listings` (index on `(body_type, fuel, city, price_inr)`), `aliases(ali
 |---|---|---|
 | Mic denied / broken | browser error | typed input box |
 | STT error/timeout/empty | `ProviderError` or empty text | spoken "Sorry, I didn't catch that" (`transcript` → `sentence` → `done`, see §10); state unchanged; `stt_error` / `stt_empty` |
-| Sarvam STT error/timeout | `ProviderError` in `FailoverSTT` | same audio to Groq Whisper (dropdown picks English or Roman-script Hinglish prompt); `stt_failover` (N14) |
+| Sarvam STT error/timeout | `ProviderError` in `FailoverSTT` | same audio to Groq Whisper (auto-detect, Roman-script Hinglish prompt; the UI always sends `hi-en`); `stt_failover` (N14) |
 | No Sarvam key | `make_stt` | Groq Whisper for English; Hinglish gets a Roman-script prompt; `stt_hinglish_groq` |
 | Postgres connection dropped | pool `check` on checkout | broken connection replaced before use; the turn runs normally (N15) |
 | LLM 429/5xx/timeout | `ProviderError` after backoff | failover to alternate LLM → else rules-only extractor / template composer |

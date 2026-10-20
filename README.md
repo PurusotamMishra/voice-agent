@@ -34,7 +34,7 @@ Then open http://localhost:5173 and allow the microphone.
 |---|---|---|
 | `GROQ_API_KEY` | yes (LLM, English STT) | nothing works |
 | `ELEVENLABS_API_KEY` | no, server voice | the browser speaks the answer (`tts_client` fallback) |
-| `SARVAM_API_KEY` | no, but recommended | With it, Sarvam transcribes all speech, English and Hinglish, so the buyer can switch language mid-conversation; Groq Whisper takes over if Sarvam fails (`stt_failover`). Without it, the dropdown picks Groq Whisper for English or Whisper with a Roman-script prompt for Hinglish (`stt_hinglish_groq`) |
+| `SARVAM_API_KEY` | no, but recommended | With it, Sarvam transcribes all speech, English and Hinglish, so the buyer can switch language mid-conversation; Groq Whisper takes over if Sarvam fails (`stt_failover`). Without it, Groq Whisper auto-detects the language with a Roman-script prompt (`stt_hinglish_groq`) |
 | `GEMINI_API_KEY` | no, LLM failover | no failover when Groq errors; the rules-only extractor still runs |
 
 Compose starts `db` (host port 5433), `app` (port 8000) and `ui` (nginx, port 5173). The catalog is seeded on first boot. `.env` is never committed.
@@ -53,7 +53,7 @@ Checks: `uv run pytest`, `uv run ruff format . && uv run ruff check .`, `uv run 
 ## 4. Using it
 
 - Hold the **Hold to talk** button, speak, release. The transcript, slots, executed SQL, top three with score breakdown, validator verdict and latency stages fill in as events arrive, and the answer plays sentence by sentence.
-- The dropdown next to the button picks the input language: **English** or **Hinglish**. With `SARVAM_API_KEY` set it only matters on fallbacks (the browser voice, and how Groq Whisper transcribes if Sarvam fails); you can switch language mid-conversation without touching it. Without the key it decides which STT runs, so switch it before speaking Hindi: Whisper set to English translates Hindi speech into English.
+- There is no language switch: speak English or Hinglish and change mid-conversation. The reply follows the words you used (English, or Roman-script Hinglish).
 - If the microphone is unavailable, type in the box and press Send. Typed input skips STT.
 
 Example conversation (utterances to try, not recorded output):
