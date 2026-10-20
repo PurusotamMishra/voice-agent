@@ -40,8 +40,26 @@ def merge_slots(old: Slots, updates: Mapping[str, Any]) -> tuple[Slots, SlotDiff
     return new, diff
 
 
+def _filled_slots_changed(old: Slots, updates: Mapping[str, Any]) -> list[str]:
+    """Slots that already had a value and these updates change; budget bounds are one slot."""
+    valid, _ = sanitize_updates(updates)
+    _, diff = merge_slots(old, valid)
+    return sorted(
+        {
+            "budget" if k.startswith("budget") else k
+            for k, (before, _) in diff.items()
+            if before is not None
+        }
+    )
+
+
 def apply_understanding(mem: Memory, u: Understanding) -> tuple[Memory, SlotDiff, Route]:
     ti = u.turn_intent
+    if ti.intent is Intent.CORRECT:
+        changed = _filled_slots_changed(mem.slots, u.updates)
+        if len(changed) > 1:  # G2: a correction changes one slot; ask instead of guessing
+            return mem, {}, Route(kind="which_correction", slots=changed)
+
     if u.unsupported:
         # N16: keep what we could use; never search with the unknown value silently dropped.
         valid, _ = sanitize_updates(u.updates)

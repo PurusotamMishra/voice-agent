@@ -223,6 +223,7 @@ Fill this in as decisions are made; it goes into the README verbatim.
 - **G1 — Slots carry over unless contradicted; `reset` clears.** DECIDED. A new utterance merges into the slots, and contradicting values replace old ones. "Naya search / start over" → `reset`. Active slots are always on screen so carry-over is visible, never hidden.
   - State shape: `session_id, slots (with source turn + confidence each), pending_confirmation, pending_relaxation, last_results (ordered IDs), focused_listing_id, turn_log`.
 - **G2 — A correction replaces exactly one slot.** DECIDED. Diff logged and shown (`fuel: diesel → CNG`); the eval asserts that only that key changed.
+  - Enforced in code (2026-10-20, review finding 4): in a `correct` turn, a slot that already had a value and changes is the correction, and empty slots are added as new constraints. If two filled slots would change (budget bounds count as one), nothing is applied and the reply asks which one.
   - *Rejected:* clearing dependent slots (theoretically tidier, but violates the rubric's "update exactly one slot").
 - **G3 — LLM extracts a reference descriptor; code resolves it to an ID.** DECIDED
   - The extraction call returns `reference: {kind: ordinal|make|model|pronoun, value}`. Code maps it against `last_results`. A bare pronoun ("uska", "it") → `focused_listing_id` (last discussed), else result #1. The resolved ID must be in `last_results`, else ask "Which one: 1, 2 or 3?"

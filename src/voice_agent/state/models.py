@@ -18,6 +18,7 @@ RouteKind = Literal[
     "unsupported",
     "need_info",
     "relax_declined",
+    "which_correction",
 ]
 
 
@@ -44,3 +45,4 @@ class Route(BaseModel):
     listing_id: str | None = None
     follow_up_field: FollowUpField | None = None
     unsupported: list[Unsupported] = Field(default_factory=list)
+    slots: list[str] = Field(default_factory=list)  # which_correction: the slots in question

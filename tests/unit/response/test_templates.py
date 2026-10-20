@@ -32,3 +32,8 @@ def test_results_template_does_not_repeat_km_from_a_reason() -> None:
     )
     text = templates.results(build_fact_sheet([s], None, Language.EN)).text()
     assert text.count("64,000 km") == 1
+
+
+def test_which_correction_names_the_slots() -> None:
+    text = templates.which_correction(["city", "fuel"]).text()
+    assert text == "Which one should I change: city or fuel? Please say one change at a time."

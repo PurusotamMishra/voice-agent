@@ -40,6 +40,25 @@ def simple(kind: str) -> ComposedResponse:
     return _say(_SIMPLE[kind])
 
 
+_CHANGE_LABEL = {
+    "budget": "budget",
+    "body_type": "vehicle type",
+    "fuel": "fuel",
+    "city": "city",
+    "make": "brand",
+    "model": "model",
+    "max_km": "kilometre limit",
+    "min_payload_kg": "payload",
+    "min_year": "model year",
+    "purpose": "purpose",
+}
+
+
+def which_correction(slots: Sequence[str]) -> ComposedResponse:
+    names = " or ".join(_CHANGE_LABEL.get(s, s) for s in slots)
+    return _say(f"Which one should I change: {names}? Please say one change at a time.")
+
+
 def results(facts: FactSheet) -> ComposedResponse:
     items = []
     for i in facts.items:

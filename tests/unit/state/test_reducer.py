@@ -173,3 +173,31 @@ def test_no_to_confirmation_keeps_the_other_updates() -> None:
     assert mem2.slots.city is City.PUNE and mem2.slots.model is None
     assert diff == {"city": (None, "pune")} and route.kind == "search"
     assert mem2.pending_confirmation is None
+
+
+def test_correction_may_add_empty_slots() -> None:
+    _, diff, route = apply_understanding(
+        BASE, u(Intent.CORRECT, updates={"fuel": Fuel.CNG, "budget_max": 500_000})
+    )
+    assert route.kind == "search"
+    assert diff == {"fuel": ("diesel", "cng"), "budget_max": (None, 500_000)}
+
+
+def test_correction_changing_two_filled_slots_asks_which() -> None:
+    mem, diff, route = apply_understanding(
+        BASE, u(Intent.CORRECT, updates={"fuel": Fuel.CNG, "city": City.DELHI})
+    )
+    assert route.kind == "which_correction" and route.slots == ["city", "fuel"]
+    assert mem == BASE and diff == {}
+
+
+def test_budget_bounds_count_as_one_slot_in_a_correction() -> None:
+    mem0 = BASE.model_copy(
+        update={
+            "slots": BASE.slots.model_copy(update={"budget_target": 500_000, "budget_max": 550_000})
+        }
+    )
+    _, _, route = apply_understanding(
+        mem0, u(Intent.CORRECT, updates={"budget_max": 600_000, "budget_target": None})
+    )
+    assert route.kind == "search"

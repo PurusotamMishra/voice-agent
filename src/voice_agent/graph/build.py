@@ -177,6 +177,8 @@ def build_graph(deps: Deps, checkpointer: BaseCheckpointSaver[Any] | None = None
                 response = templates.confirm(s["pending_confirmation"])  # type: ignore[arg-type]
             elif route.kind == "unsupported":
                 response = templates.unsupported(route.unsupported)
+            elif route.kind == "which_correction":
+                response = templates.which_correction(route.slots)
             elif route.kind in (
                 "reset",
                 "out_of_domain",
