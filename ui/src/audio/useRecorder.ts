@@ -48,7 +48,9 @@ export function useRecorder() {
     return p;
   }, []);
 
-  const stop = useCallback(async (): Promise<Recording | null> => {
+  const stopInFlight = useRef<Promise<Recording | null> | null>(null); // concurrent stop() callers share it
+
+  const doStop = useCallback(async (): Promise<Recording | null> => {
     if (pendingStart.current) {
       stopRequested.current = true;
       await pendingStart.current.catch(() => undefined); // start() reports its own error
@@ -67,6 +69,15 @@ export function useRecorder() {
       rec.stop();
     });
   }, []);
+
+  const stop = useCallback((): Promise<Recording | null> => {
+    if (stopInFlight.current) return stopInFlight.current;
+    const p = doStop().finally(() => {
+      stopInFlight.current = null;
+    });
+    stopInFlight.current = p;
+    return p;
+  }, [doStop]);
 
   return { recording, start, stop };
 }
