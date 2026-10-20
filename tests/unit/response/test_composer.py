@@ -2,6 +2,7 @@ from tests.fakes import FakeLLM, make_listing
 from voice_agent.domain.enums import Language
 from voice_agent.domain.models import ScoredListing
 from voice_agent.domain.ports import ProviderError
+from voice_agent.providers.llm import FailoverLLM
 from voice_agent.response.composer import compose_results
 from voice_agent.response.factsheet import build_fact_sheet
 from voice_agent.response.schema import ComposedResponse, ItemSentence
@@ -56,3 +57,11 @@ async def test_system_prompt_states_unit_rule_and_outage_attempts() -> None:
     assert "only in the item's listing_id field" in llm.calls[0][0]
     assert "never write a listing id" in llm.calls[0][0].lower()
     assert out.attempts == 1
+
+
+async def test_failover_is_recorded() -> None:
+    llm = FailoverLLM(
+        FakeLLM([ProviderError("groq", "429")], name="groq"), FakeLLM([GOOD], name="gemini")
+    )
+    out = await compose_results(FACTS, llm, VOCAB)
+    assert out.verdict.ok and out.fallbacks == ["llm_failover"]

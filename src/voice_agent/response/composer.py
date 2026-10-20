@@ -44,6 +44,7 @@ class ComposeOutcome(BaseModel):
 async def compose_results(facts: FactSheet, llm: LLM, vocab: EntityVocab) -> ComposeOutcome:
     system = _SYSTEM.format(language=_LANG[facts.language])
     usage: list[Usage] = []
+    failover: list[str] = []
     violations: list[Violation] = []
     attempts = 0
     for attempt in range(1, MAX_ATTEMPTS + 1):
@@ -54,9 +55,11 @@ async def compose_results(facts: FactSheet, llm: LLM, vocab: EntityVocab) -> Com
             log.warning("composer LLM failed: %s", exc)
             break
         usage.append(result.usage)
+        if result.usage.provider != llm.name:  # rule 7: the alternate LLM served this call
+            failover = ["llm_failover"]
         verdict = validate(result.value, facts, vocab)
         if verdict.ok:
-            fallbacks = ["regenerated"] if attempt > 1 else []
+            fallbacks = [*failover, *(["regenerated"] if attempt > 1 else [])]
             return ComposeOutcome(
                 response=result.value,
                 verdict=verdict,
@@ -70,7 +73,7 @@ async def compose_results(facts: FactSheet, llm: LLM, vocab: EntityVocab) -> Com
         response=templates.results(facts),
         verdict=Verdict(ok=True, violations=violations, source="template"),
         usage=usage,
-        fallbacks=["template"],
+        fallbacks=[*failover, "template"],
         attempts=attempts,
     )
 
