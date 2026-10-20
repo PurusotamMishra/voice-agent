@@ -117,6 +117,7 @@ def summarise(rows: list[dict[str, Any]]) -> str:
 
 
 def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]  # Windows cp1252 cannot print Devanagari
     if key(get_settings().groq_api_key) is None:
         print("GROQ_API_KEY is not set", file=sys.stderr)
         return 2
