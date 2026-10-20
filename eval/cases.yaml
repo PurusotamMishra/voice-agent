@@ -57,7 +57,7 @@
   category: english
   turns:
     - say: "Diesel mini truck that has run less than 50,000 km in Chennai"
-      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: pune}
+      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: chennai}
 - id: en-11
   category: english
   turns:
@@ -190,7 +190,7 @@
   category: hinglish
   turns:
     - say: "Pune mein diesel mini truck jo pachaas hazaar km se kam chala ho"
-      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: pune}
+      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: chennai}
 - id: hi-06
   category: hinglish
   turns:
