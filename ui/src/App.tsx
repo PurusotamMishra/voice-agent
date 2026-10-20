@@ -44,7 +44,9 @@ export default function App() {
     if (!p || p.posted || !p.turnId || p.firstAudio === null) return;
     p.posted = true;
     setFirstAudioMs(p.firstAudio - p.speechEnd);
-    void postClientTimings(p.turnId, { t_speech_end: p.speechEnd, t_first_audio: p.firstAudio });
+    postClientTimings(p.turnId, { t_speech_end: p.speechEnd, t_first_audio: p.firstAudio }).catch((e) =>
+      console.warn("client timings not sent", e),
+    );
   };
 
   const onEvent = (e: TurnEvent) => {
@@ -85,6 +87,9 @@ export default function App() {
     setBusy(true);
     setError(null);
     setSearch(null);
+    setDone(null);
+    setUnderstanding(null);
+    setTranscript(null);
     setFirstAudioMs(null);
     try {
       await sendTurn(form, onEvent);
