@@ -37,6 +37,8 @@ Then open http://localhost:5173 and allow the microphone.
 | `SARVAM_API_KEY` | no, but recommended | With it, Sarvam transcribes all speech, English and Hinglish, so the buyer can switch language mid-conversation; Groq Whisper takes over if Sarvam fails (`stt_failover`). Without it, Groq Whisper auto-detects the language with a Roman-script prompt (`stt_hinglish_groq`) |
 | `GEMINI_API_KEY` | no, LLM failover | no failover when Groq errors; the rules-only extractor still runs |
 
+**Only two keys?** Use `GROQ_API_KEY` + `SARVAM_API_KEY`. Speech-to-text decides the filters, so a misheard budget or city gives a wrong search that the validator can't catch. In the audio eval, Groq Whisper returned Hinglish in Devanagari or Urdu script (0/2), while Sarvam returned Roman script (2/2 correct filters). Without ElevenLabs, the browser speaks the same validated reply. The voice is less natural, audio starts sooner, and ElevenLabs is about 95% of the cost per turn. The audio eval clips are already in `eval/audio/`, so ElevenLabs isn't needed to run it.
+
 Compose starts `db` (host port 5433), `app` (port 8000) and `ui` (nginx, port 5173). The catalog is seeded on first boot. `.env` is never committed.
 
 ## 3. Local development without Docker
