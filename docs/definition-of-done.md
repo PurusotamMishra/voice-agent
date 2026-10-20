@@ -26,7 +26,7 @@ A task is done only when every applicable box is true. "Applicable" is decided h
 
 ## Milestones (project level)
 - [x] **M1 — text loop:** typed utterance → slots → SQL → top-3 → validated text; eval ≥ 90% (English) (eval 25/25, 2026-10-19)
-- [ ] **M2 — voice loop:** PTT → STT → … → streamed TTS; latency panel shows all stages
+- [x] **M2 — voice loop:** PTT → STT → … → streamed TTS; latency panel shows all stages (live mic test in Docker, English and Hindi speech, 2026-10-20; browser speech end → first audio p50 3.3 s)
 - [x] **M3 — awkward turns:** correction, zero-result + relaxation, follow-up all pass in eval and live (correction 3/3, zero_result 2/2, follow_up 2/2 in the eval)
-- [ ] **M4 — Hinglish:** Sarvam STT path + Hinglish eval cases ≥ 90%
-- [ ] **M5 — ship:** Docker ≤10-min setup verified, README, eval results committed, latency + cost reports generated
+- [ ] **M4 — Hinglish:** Sarvam STT path + Hinglish eval cases ≥ 90% (Sarvam path verified live and on the audio clips; Hinglish eval was 7/7 on gpt-oss-120b before N13/N14 and 4/7 on the smaller models; **needs a rerun on gpt-oss-120b**)
+- [ ] **M5 — ship:** Docker ≤10-min setup verified, README, eval results committed, latency + cost reports generated (README, reports and results done; clean-clone timing and the gpt-oss-120b eval rerun outstanding)
