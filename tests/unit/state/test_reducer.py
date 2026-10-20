@@ -1,6 +1,6 @@
 from voice_agent.domain.enums import AliasKind, BodyType, City, FollowUpField, Fuel, Intent
 from voice_agent.domain.models import LowConfidence, Relaxation, ResultRef, Slots, Unsupported
-from voice_agent.state.models import Memory
+from voice_agent.state.models import Memory, PendingConfirmation
 from voice_agent.state.reducer import apply_understanding, merge_slots, sanitize_updates
 from voice_agent.understanding.schema import Reference, TurnIntent, Understanding
 
@@ -73,10 +73,18 @@ def test_follow_up_resolves_and_focuses() -> None:
     assert mem2.focused_listing_id == "B"
 
 
-def test_unsupported_short_circuits() -> None:
+def test_unsupported_mention_keeps_other_updates_without_search() -> None:
+    pending = PendingConfirmation(slot="model", raw="aace", candidate="Ace", score=0.5)
+    mem0 = BASE.model_copy(update={"pending_confirmation": pending})
     bad = Unsupported(kind=AliasKind.CITY, raw="Nagpur")
-    mem, diff, route = apply_understanding(BASE, u(updates={"fuel": Fuel.CNG}, unsupported=[bad]))
-    assert route.kind == "unsupported" and mem == BASE and diff == {}
+    mem, diff, route = apply_understanding(
+        mem0, u(updates={"make": "Tata", "budget_max": 500_000}, unsupported=[bad])
+    )
+    assert route.kind == "unsupported" and route.unsupported == [bad]
+    assert mem.slots.make == "Tata" and mem.slots.budget_max == 500_000
+    assert mem.slots.city is City.MUMBAI  # the unknown city never replaces the old one
+    assert diff == {"make": (None, "Tata"), "budget_max": (None, 500_000)}
+    assert mem.pending_confirmation is None and mem.pending_relaxation is None
 
 
 def test_sanitize_drops_invalid_values() -> None:

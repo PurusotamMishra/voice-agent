@@ -43,7 +43,13 @@ def merge_slots(old: Slots, updates: Mapping[str, Any]) -> tuple[Slots, SlotDiff
 def apply_understanding(mem: Memory, u: Understanding) -> tuple[Memory, SlotDiff, Route]:
     ti = u.turn_intent
     if u.unsupported:
-        return mem, {}, Route(kind="unsupported", unsupported=u.unsupported)
+        # N16: keep what we could use; never search with the unknown value silently dropped.
+        valid, _ = sanitize_updates(u.updates)
+        slots, diff = merge_slots(mem.slots, valid)
+        kept = mem.model_copy(
+            update={"slots": slots, "pending_confirmation": None, "pending_relaxation": None}
+        )
+        return kept, diff, Route(kind="unsupported", unsupported=u.unsupported)
 
     if mem.pending_confirmation is not None and ti.confirmation is not None:
         pending = mem.pending_confirmation
