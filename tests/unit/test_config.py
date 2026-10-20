@@ -16,7 +16,7 @@ def test_key_treats_blank_as_missing() -> None:
 
 
 def test_voice_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("TTS_MODE", "SARVAM_STT_MODE", "LLM_REASONING_EFFORT"):
+    for name in ("TTS_MODE", "SARVAM_STT_MODE", "LLM_REASONING_EFFORT", "GROQ_COMPOSE_MODEL"):
         monkeypatch.delenv(name, raising=False)
     s = Settings(_env_file=None)  # type: ignore[call-arg]
     assert s.tts_mode == "sentence"

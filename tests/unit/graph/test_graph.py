@@ -167,3 +167,32 @@ async def test_component_exception_returns_error_turn_and_session_survives() -> 
     assert "total" in t1.timings_ms
     t2 = await r.run("s4", "CNG pickup in Mumbai")
     assert t2.route == "search" and [x.listing.listing_id for x in t2.results] == ["A"]
+
+
+async def test_compose_llm_is_used_for_composition_when_given() -> None:
+    extract = FakeLLM(
+        [
+            TurnIntent(
+                intent=Intent.SEARCH,
+                slots=ExtractedSlots(
+                    fuel=Fuel.CNG, body_type=BodyType.PICKUP, city_mention="Mumbai"
+                ),
+            )
+        ]
+    )
+    composer = FakeLLM([ProviderError("fake", "composer offline")])
+    deps = Deps(
+        llm=extract,
+        normalizer=FakeNormalizer({(AliasKind.CITY, "mumbai"): ("mumbai", 1.0)}),
+        catalog=FakeCatalog(LISTINGS),
+        vocab=EntityVocab(frozenset({"Tata"}), frozenset({"Ace Gold"})),
+        neighbors={},
+        weights=DEFAULT_WEIGHTS,
+        alias_map={k: {} for k in AliasKind},
+        compose_llm=composer,
+    )
+    r = TurnRunner(build_graph(deps, InMemorySaver()), turn_log_path=None)
+    t = await r.run("s9", "CNG pickup in Mumbai")
+    assert t.results and "template" in t.fallback_used  # the composer FakeLLM was the one called
+    assert len(composer.calls) == 1  # FakeLLM records each structured() call
+    assert len(extract.calls) == 1  # the extractor LLM was not asked to compose

@@ -60,18 +60,25 @@ class FailoverLLM:
             return await self._fallback.structured(system, user, schema)
 
 
-def _groq(settings: Settings) -> LLM | None:
+def groq_reasoning_effort(model: str, effort: str) -> str | None:
+    """N6: gpt-oss spends hidden reasoning tokens against the 8k TPM budget; other models reject the arg."""
+    return effort if model.startswith("openai/gpt-oss") else None
+
+
+def _groq(settings: Settings, model: str | None = None) -> LLM | None:
     api_key = key(settings.groq_api_key)
     if api_key is None:
         return None
     from langchain_groq import ChatGroq
 
+    name = model or settings.groq_model
     chat = ChatGroq(
-        model_name=settings.groq_model,
+        model_name=name,
         api_key=SecretStr(api_key),
         temperature=0,
         max_retries=2,
         timeout=15,
+        reasoning_effort=groq_reasoning_effort(name, settings.llm_reasoning_effort),
     )
     return LangChainLLM("groq", chat)
 
@@ -95,8 +102,8 @@ def _gemini(settings: Settings) -> LLM | None:
 _FACTORIES: dict[str, Callable[[Settings], LLM | None]] = {"groq": _groq, "gemini": _gemini}
 
 
-def make_llm(settings: Settings) -> LLM:
-    primary = _FACTORIES[settings.llm_provider](settings)
+def make_llm(settings: Settings, groq_model: str | None = None) -> LLM:
+    primary = _groq(settings, groq_model) if settings.llm_provider == "groq" else _gemini(settings)
     if primary is None:
         raise RuntimeError(f"{settings.llm_provider.upper()}_API_KEY is not set (see .env.example)")
     fallback = None

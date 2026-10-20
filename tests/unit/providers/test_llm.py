@@ -48,3 +48,19 @@ def test_empty_fallback_key_is_treated_as_absent(blank: str) -> None:
     settings = Settings(_env_file=None, groq_api_key="x", gemini_api_key=blank)  # type: ignore[arg-type,call-arg]
     llm = make_llm(settings)
     assert isinstance(llm, FailoverLLM) and llm._fallback is None
+
+
+from voice_agent.providers.llm import groq_reasoning_effort  # noqa: E402
+
+
+def test_reasoning_effort_only_for_gpt_oss() -> None:
+    assert groq_reasoning_effort("openai/gpt-oss-120b", "low") == "low"
+    assert groq_reasoning_effort("qwen/qwen3.8-27b", "low") is None
+
+
+def test_make_llm_accepts_a_groq_model_override() -> None:
+    from pydantic import SecretStr
+
+    s = Settings(_env_file=None, groq_api_key=SecretStr("k"), llm_fallback_provider="none")  # type: ignore[call-arg]
+    llm = make_llm(s, groq_model="qwen/qwen3.8-27b")
+    assert llm.name == "groq"

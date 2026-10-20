@@ -39,6 +39,7 @@ class Deps:
     neighbors: Mapping[City, Sequence[City]]
     weights: Mapping[str, float]
     alias_map: Mapping[AliasKind, Mapping[str, str]]
+    compose_llm: LLM | None = None
 
 
 def _memory(s: ConversationState) -> Memory:
@@ -158,7 +159,7 @@ def build_graph(deps: Deps, checkpointer: BaseCheckpointSaver[Any] | None = None
         with timed() as t:
             if route.kind == "search" and s.get("results"):
                 facts = build_fact_sheet(s["results"], s["slots"].purpose, language)
-                outcome = await compose_results(facts, deps.llm, deps.vocab)
+                outcome = await compose_results(facts, deps.compose_llm or deps.llm, deps.vocab)
                 response, verdict = outcome.response, outcome.verdict
                 usage += outcome.usage
                 fallbacks += outcome.fallbacks

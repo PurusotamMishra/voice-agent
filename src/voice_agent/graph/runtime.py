@@ -28,6 +28,9 @@ async def build_runtime(settings: Settings, log_turns: bool = True) -> AsyncIter
         settings.database_url, open=False, kwargs={"autocommit": True}
     ) as pool:
         await seed(pool, settings.data_dir)
+        compose_llm = (
+            make_llm(settings, settings.groq_compose_model) if settings.groq_compose_model else None
+        )
         deps = Deps(
             llm=make_llm(settings),
             normalizer=PgNormalizer(pool),
@@ -36,6 +39,7 @@ async def build_runtime(settings: Settings, log_turns: bool = True) -> AsyncIter
             neighbors=await load_neighbors(pool),
             weights=load_weights(settings.ranking_config),
             alias_map=await load_alias_map(pool),
+            compose_llm=compose_llm,
         )
         async with AsyncPostgresSaver.from_conn_string(
             settings.database_url, serde=checkpoint_serde()
