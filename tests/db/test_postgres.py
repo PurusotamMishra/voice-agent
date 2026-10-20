@@ -54,3 +54,17 @@ async def test_vocab_aliases_only_make_and_model(pool) -> None:  # type: ignore[
     assert vocab.aliases["ace"] == ("model", "Ace")
     assert "pickup" not in vocab.aliases
     assert all(kind in ("make", "model") for kind, _ in vocab.aliases.values())
+
+
+async def test_seed_reloads_aliases_on_every_boot(pool, tmp_path) -> None:  # type: ignore[no-untyped-def]
+    data = get_settings().data_dir
+    for name in ("listings.csv", "aliases.csv", "city_neighbors.csv"):
+        (tmp_path / name).write_bytes((data / name).read_bytes())
+    with (tmp_path / "aliases.csv").open("a", encoding="utf-8") as fh:
+        fh.write("gaadiwala,Tata,make\n")
+    try:
+        await seed(pool, tmp_path)
+        m = await PgNormalizer(pool).normalize(AliasKind.MAKE, "gaadiwala")
+        assert m.canonical == "Tata" and m.method == "exact"
+    finally:
+        await seed(pool, data)  # put the real aliases back

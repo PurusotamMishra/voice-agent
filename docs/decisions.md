@@ -324,6 +324,7 @@ Vendor limits below were checked on 2026-10-19 via third-party sources and **mus
   - *Guardrail:* functional panels only (PTT, playback, transcript, slots + diff, executed SQL, top-3 with score breakdown, latency table, typed fallback, validator verdict). No design system, no routing, no state library beyond React state.
   - *Rejected:* vanilla JS (less structured as panels grow); Streamlit (awkward for push-to-talk and streamed audio).
 - **K2 — docker-compose (`ui`, `app`, `db`); secrets via `.env` (with `.env.example` committed); DB seeded on first boot; healthchecks gate startup order.** DECIDED. Target: `cp .env.example .env` → add Groq key → `docker compose up` → working in ≤10 min.
+  - `aliases` and `city_neighbors` are replaced from the CSVs on every boot; listings load only into an empty table (2026-10-20, review finding 11).
 - **K3 — pytest unit tests for the deterministic core + GitHub Actions (ruff, mypy, pytest) on push.** DECIDED
   - Unit-tested: money/number parser, normaliser, filter builder, ranker, validator, state reducer (correction = one-slot diff), relaxation prober, reference resolver.
   - The live eval runs manually (needs keys); its latest results are committed to `eval/results/`.

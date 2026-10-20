@@ -1,4 +1,4 @@
-"""Create tables and load data/*.csv on first boot (idempotent)."""
+"""Create tables, load listings on first boot, and reload the lookup tables on every boot."""
 
 import csv
 from pathlib import Path
@@ -45,16 +45,19 @@ def _self_aliases(listings: list[Listing]) -> list[dict[str, str]]:
 
 
 async def seed(pool: AsyncConnectionPool, data_dir: Path) -> None:
+    """Listings load only into an empty table, so listing ids stay stable for the eval. The
+    small lookup tables are replaced on every boot, so CSV edits reach an existing DB."""
     async with pool.connection() as conn:
         await conn.execute(SCHEMA_PATH.read_text(encoding="utf-8"))
         cur = await conn.execute("SELECT count(*) FROM listings")
         row = await cur.fetchone()
-        if row and row[0]:
-            return
         listings = [Listing.model_validate(r) for r in _read(data_dir / "listings.csv")]
-        # One transaction: a partial load must not leave listings set and aliases empty.
+        # One transaction: a failed load keeps the old rows instead of leaving tables empty.
         async with conn.transaction(), conn.cursor() as c:
-            await c.executemany(_INSERT_LISTING, [x.model_dump(mode="json") for x in listings])
+            if not (row and row[0]):
+                await c.executemany(_INSERT_LISTING, [x.model_dump(mode="json") for x in listings])
+            await c.execute("DELETE FROM aliases")
+            await c.execute("DELETE FROM city_neighbors")
             await c.executemany(
                 _INSERT_ALIAS, _read(data_dir / "aliases.csv") + _self_aliases(listings)
             )
