@@ -1,6 +1,12 @@
 """Postgres implementations of Catalog and Normalizer (B5, D2), plus startup loaders."""
 
-from psycopg.rows import dict_row
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.checkpoint.serde.base import SerializerProtocol
+from psycopg import AsyncConnection
+from psycopg.rows import DictRow, dict_row
 from psycopg_pool import AsyncConnectionPool
 
 from voice_agent.catalog.filters import build_count_sql, build_search_sql
@@ -8,6 +14,31 @@ from voice_agent.domain.enums import AliasKind, City
 from voice_agent.domain.models import Filters, Listing
 from voice_agent.domain.ports import Match, SearchResult
 from voice_agent.response.validator import EntityVocab
+
+PgPool = AsyncConnectionPool  # the pool type, for annotations outside providers/
+
+
+def open_pool(url: str) -> AsyncConnectionPool:
+    """The catalog pool. check= tests each connection on checkout, so one dropped by the
+    network is replaced instead of failing the turn (N15). Use with `async with`."""
+    return AsyncConnectionPool(
+        url, open=False, kwargs={"autocommit": True}, check=AsyncConnectionPool.check_connection
+    )
+
+
+@asynccontextmanager
+async def open_checkpointer(
+    url: str, serde: SerializerProtocol
+) -> AsyncIterator[AsyncPostgresSaver]:
+    """LangGraph's saver needs dict rows and no prepared statements, so it gets its own small
+    pool (N15)."""
+    kwargs = {"autocommit": True, "row_factory": dict_row, "prepare_threshold": 0}
+    async with AsyncConnectionPool[AsyncConnection[DictRow]](
+        url, open=False, max_size=4, kwargs=kwargs, check=AsyncConnectionPool.check_connection
+    ) as pool:
+        saver = AsyncPostgresSaver(pool, serde=serde)
+        await saver.setup()
+        yield saver
 
 
 class PgCatalog:

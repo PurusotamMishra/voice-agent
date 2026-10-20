@@ -3,13 +3,12 @@
 import csv
 from pathlib import Path
 
-from psycopg_pool import AsyncConnectionPool
-
 from voice_agent.aio import run
 from voice_agent.catalog.filters import LISTING_COLUMNS
 from voice_agent.config import get_settings
 from voice_agent.domain.enums import BodyType, City, Fuel
 from voice_agent.domain.models import Listing
+from voice_agent.providers.postgres import PgPool, open_pool
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 _INSERT_LISTING = (
@@ -44,7 +43,7 @@ def _self_aliases(listings: list[Listing]) -> list[dict[str, str]]:
     return rows
 
 
-async def seed(pool: AsyncConnectionPool, data_dir: Path) -> None:
+async def seed(pool: PgPool, data_dir: Path) -> None:
     """Listings load only into an empty table, so listing ids stay stable for the eval. The
     small lookup tables are replaced on every boot, so CSV edits reach an existing DB."""
     async with pool.connection() as conn:
@@ -66,9 +65,7 @@ async def seed(pool: AsyncConnectionPool, data_dir: Path) -> None:
 
 async def _main() -> None:
     settings = get_settings()
-    async with AsyncConnectionPool(
-        settings.database_url, open=False, kwargs={"autocommit": True}
-    ) as pool:
+    async with open_pool(settings.database_url) as pool:
         await seed(pool, settings.data_dir)
     print("seeded")
 
