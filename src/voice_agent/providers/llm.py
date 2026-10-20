@@ -17,12 +17,16 @@ class LangChainLLM:
     def __init__(self, name: str, chat: BaseChatModel) -> None:
         self.name = name
         self._chat = chat
+        self._runnables: dict[type[BaseModel], Any] = {}
 
     async def structured[T: BaseModel](
         self, system: str, user: str, schema: type[T]
     ) -> LLMResult[T]:
         try:
-            runnable = self._chat.with_structured_output(schema, include_raw=True)
+            runnable = self._runnables.get(schema)
+            if runnable is None:  # building it converts the schema to a tool spec: do it once
+                runnable = self._chat.with_structured_output(schema, include_raw=True)
+                self._runnables[schema] = runnable
             out: dict[str, Any] = await runnable.ainvoke(  # type: ignore[assignment]
                 [("system", system), ("human", user)]
             )

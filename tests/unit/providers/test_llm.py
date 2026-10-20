@@ -64,3 +64,25 @@ def test_make_llm_accepts_a_groq_model_override() -> None:
     s = Settings(_env_file=None, groq_api_key=SecretStr("k"), llm_fallback_provider="none")  # type: ignore[call-arg]
     llm = make_llm(s, groq_model="qwen/qwen3.8-27b")
     assert llm.name == "groq"
+
+
+class _CountingChat:
+    def __init__(self) -> None:
+        self.setups = 0
+
+    def with_structured_output(self, schema: type[BaseModel], include_raw: bool = False) -> object:
+        self.setups += 1
+        return _Runnable()
+
+
+class _Runnable:
+    async def ainvoke(self, messages: object) -> dict[str, object]:
+        return {"parsed": Out(x=1), "raw": None}
+
+
+async def test_structured_output_setup_is_built_once_per_schema() -> None:
+    chat = _CountingChat()
+    llm = LangChainLLM("groq", chat)  # type: ignore[arg-type]
+    await llm.structured("s", "u", Out)
+    await llm.structured("s", "u", Out)
+    assert chat.setups == 1
