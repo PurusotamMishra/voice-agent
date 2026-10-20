@@ -165,6 +165,7 @@ async def test_component_exception_returns_error_turn_and_session_survives() -> 
     assert t1.route == "error" and t1.fallback_used == ["error"]
     assert t1.response_text == templates.simple("error").text()
     assert "total" in t1.timings_ms
+    assert (await r.state("s4"))["slots"] == {} and (await r.state("s4"))["turn"] == 0
     t2 = await r.run("s4", "CNG pickup in Mumbai")
     assert t2.route == "search" and [x.listing.listing_id for x in t2.results] == ["A"]
 
@@ -239,3 +240,46 @@ async def test_declined_relaxation_answers_with_template() -> None:
     t2 = await r.run("s-decline", "no")
     assert t2.route == "relax_declined" and t2.filters is None
     assert t2.response_text == templates.simple("relax_declined").text()
+
+
+class _FailSecondSearch(FakeCatalog):
+    def __init__(self) -> None:
+        super().__init__(LISTINGS)
+        self.calls = 0
+
+    async def search(self, filters: Filters, limit: int = 500) -> SearchResult:
+        self.calls += 1
+        if self.calls == 2:
+            raise RuntimeError("db down")
+        return await super().search(filters, limit)
+
+
+async def test_failed_turn_rolls_back_slot_changes() -> None:
+    down = ProviderError("fake", "composer offline")
+    llm = FakeLLM(
+        [
+            TurnIntent(
+                intent=Intent.SEARCH,
+                slots=ExtractedSlots(
+                    fuel=Fuel.CNG, body_type=BodyType.PICKUP, city_mention="Mumbai"
+                ),
+            ),
+            down,
+            TurnIntent(intent=Intent.CORRECT, slots=ExtractedSlots(fuel=Fuel.DIESEL)),
+        ]
+    )
+    deps = Deps(
+        llm=llm,
+        normalizer=FakeNormalizer({(AliasKind.CITY, "mumbai"): ("mumbai", 1.0)}),
+        catalog=_FailSecondSearch(),
+        vocab=EntityVocab(frozenset(), frozenset()),
+        neighbors={},
+        weights=DEFAULT_WEIGHTS,
+        alias_map={k: {} for k in AliasKind},
+    )
+    r = TurnRunner(build_graph(deps, InMemorySaver()), turn_log_path=None)
+    await r.run("s-rollback", "CNG pickup in Mumbai")
+    t2 = await r.run("s-rollback", "no, diesel")
+    assert t2.route == "error" and t2.slots["fuel"] == "cng"
+    state = await r.state("s-rollback")
+    assert state["slots"]["fuel"] == "cng" and state["turn"] == 1

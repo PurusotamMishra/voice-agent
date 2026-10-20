@@ -72,6 +72,16 @@ TURN_RESET: dict[str, Any] = {
     "usage": [],
 }
 
+# Memory before the first turn: what a failed first turn rolls back to (N17).
+MEMORY_DEFAULTS: dict[str, Any] = {
+    "turn": 0,
+    "slots": Slots(),
+    "pending_confirmation": None,
+    "pending_relaxation": None,
+    "last_results": [],
+    "focused_listing_id": None,
+}
+
 
 # Every class that can sit in a checkpoint. An explicit allowlist keeps checkpoint
 # deserialization strict (LangGraph warns on, and will later block, unregistered types).

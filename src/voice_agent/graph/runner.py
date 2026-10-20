@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from voice_agent.domain.models import Relaxation, ScoredListing
 from voice_agent.domain.ports import Usage
-from voice_agent.graph.state import TURN_RESET
+from voice_agent.graph.state import MEMORY_DEFAULTS, TURN_RESET
 from voice_agent.response import templates
 from voice_agent.response.schema import ComposedResponse, Verdict
 from voice_agent.state.models import PendingConfirmation
@@ -50,12 +50,14 @@ class TurnRunner:
 
     async def run(self, session_id: str, text: str) -> TurnResult:
         config = {"configurable": {"thread_id": session_id}}
+        before = await self._snapshot(session_id, config)
         state: dict[str, Any] | None = None
         with timed() as total:
             try:
                 state = await self._graph.ainvoke({**TURN_RESET, "text": text}, config=config)
             except Exception:  # turn boundary: one failed turn must not end the session
                 log.exception("turn failed (session=%s)", session_id)
+                await self._rollback(session_id, config, before)
         if state is None:
             result = await self._error_result(session_id, text, config, total.ms)
         else:
@@ -63,6 +65,26 @@ class TurnRunner:
         if self._log is not None:
             append_turn(self._log, result.model_dump(mode="json"))
         return result
+
+    async def _snapshot(self, session_id: str, config: dict[str, Any]) -> Any | None:
+        try:
+            return await self._graph.aget_state(config)
+        except Exception:
+            log.warning("could not read checkpoint before turn (session=%s)", session_id)
+            return None
+
+    async def _rollback(self, session_id: str, config: dict[str, Any], before: Any | None) -> None:
+        """N17: LangGraph saves after every node, so a failed turn has half-saved its changes.
+        Write the pre-turn state back as the latest checkpoint."""
+        if before is None:
+            return  # nothing known to restore; _snapshot logged why
+        try:
+            if before.values:
+                await self._graph.aupdate_state(before.config, before.values)
+            else:
+                await self._graph.aupdate_state(config, MEMORY_DEFAULTS)
+        except Exception:
+            log.warning("could not roll back failed turn (session=%s)", session_id)
 
     async def _error_result(
         self, session_id: str, text: str, config: dict[str, Any], total_ms: float
