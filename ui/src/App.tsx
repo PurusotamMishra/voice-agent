@@ -154,9 +154,13 @@ export default function App() {
               <button
                 className={`ptt${recording ? " recording" : ""}`}
                 disabled={!session || busy}
-                onPointerDown={onPress}
+                onPointerDown={(e) => {
+                  // Capture: the release reaches this button even if the pointer left it.
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  void onPress();
+                }}
                 onPointerUp={onRelease}
-                onPointerLeave={() => recording && onRelease()}
+                onPointerCancel={onRelease}
                 aria-label="Hold to talk"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
