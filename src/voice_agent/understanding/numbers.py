@@ -37,6 +37,7 @@ _TENS_ONES_RE = re.compile(
 )
 _COMPOUND_RE = re.compile(
     rf"({_NUM})\s*(?:lakhs?|lacs?)\s+({_NUM})\s*(?:hazaar|hazar|thousand|k)\b"
+    r"(?!\s*(?:kms?\b|kilomet))"
 )
 _SAADHE_RE = re.compile(r"\bsa+dhe\s+(\d+(?:\.\d+)?)")
 _YEAR_RE = re.compile(

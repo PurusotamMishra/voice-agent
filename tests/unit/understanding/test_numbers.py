@@ -113,3 +113,12 @@ def test_direction_word_does_not_cross_a_consumed_span(text: str, expected: Nume
 def test_short_lakh_before_km_is_a_km_limit() -> None:
     n = parse_numeric("under 1.5L km, budget 5 lakh")
     assert n.max_km == 150_000 and n.budget_max == 500_000
+
+
+def test_budget_then_km_are_not_merged() -> None:
+    n = parse_numeric("budget 5 lakh 80k km tak")
+    assert n.budget_max == 500_000 and n.max_km == 80_000
+
+
+def test_lakh_hazaar_compound_still_merges() -> None:
+    assert parse_numeric("4 lakh 50 hazaar tak").budget_max == 450_000
