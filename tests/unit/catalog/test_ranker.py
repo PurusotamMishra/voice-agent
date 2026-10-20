@@ -57,8 +57,16 @@ def test_ties_break_by_listing_id_and_top_k() -> None:
 
 def test_load_weights(tmp_path: Path) -> None:
     p = tmp_path / "w.yaml"
+    p.write_text("".join(f"{k}: {v}\n" for k, v in DEFAULT_WEIGHTS.items()))
+    assert load_weights(p) == DEFAULT_WEIGHTS
     p.write_text("price: 1.0\nlow_km: 0\n")
-    assert load_weights(p) == {"price": 1.0, "low_km": 0.0}
+    with pytest.raises(ValueError, match="missing"):
+        load_weights(p)
     p.write_text("nonsense: 1\n")
     with pytest.raises(ValueError):
         load_weights(p)
+
+
+def test_shipped_ranking_config_loads() -> None:
+    shipped = Path(__file__).parents[3] / "config" / "ranking.yaml"
+    assert set(load_weights(shipped)) == set(DEFAULT_WEIGHTS)

@@ -24,6 +24,9 @@ def load_weights(path: Path) -> dict[str, float]:
     unknown = set(raw) - set(DEFAULT_WEIGHTS)
     if unknown:
         raise ValueError(f"unknown ranking features: {sorted(unknown)}")
+    missing = set(DEFAULT_WEIGHTS) - set(raw)
+    if missing:  # a feature left out would silently weigh 0
+        raise ValueError(f"missing ranking features: {sorted(missing)}")
     return {name: float(value) for name, value in raw.items()}
 
 

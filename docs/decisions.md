@@ -171,6 +171,7 @@ Fill this in as decisions are made; it goes into the README verbatim.
   - `score = Σ wᵢ · fᵢ` over normalised features in [0,1]: price headroom vs budget, low km, newer year, papers_verified, purpose fit (B4), payload fit. Weights live in `config/ranking.yaml`.
   - Every result carries its per-feature contribution breakdown, shown on screen (Q&A #2: "the reason in data"). The spoken reason is generated from the top 1–2 contributing features plus their raw catalog values.
   - Counts as the **explainable reranker** stretch goal.
+  - `config/ranking.yaml` must list every feature; an unknown or missing one fails at startup (2026-10-20, review finding 12).
   - *Rejected:* single-key sort (weak reasons); LLM rerank (not explainable in data, adds latency/cost).
 - **E4 — Executed filters and SQL are logged and shown every turn.** DECIDED (hard requirement #2).
 
