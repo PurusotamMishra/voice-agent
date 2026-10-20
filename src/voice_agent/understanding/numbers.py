@@ -43,7 +43,9 @@ _YEAR_RE = re.compile(
     r"(?:after|since|from|newer than)\s+(20\d\d)\b"
     r"|\b(20\d\d)\s*(?:ke baad|ke bad|se naya|se nayi|or newer|or later|onwards|\+)"
 )
-_KM_RE = re.compile(rf"({_NUM})\s*(k|hazaar|hazar|thousand|lakhs?)?\s*(?:kms?|kilomet\w*)\b")
+_KM_RE = re.compile(
+    rf"({_NUM})\s*(k|hazaar|hazar|thousand|lakhs?|lacs?|l)?\s*(?:kms?|kilomet\w*)\b"
+)
 _PAYLOAD_RE = re.compile(rf"({_NUM})\s*(tons?|tonnes?|kgs?)\b")
 _RANGE_RE = re.compile(
     rf"(?:rs\.?\s*)?({_NUM})\s*({_MONEY_UNIT})?\s*(?:-|to|se|and)\s*"

@@ -108,3 +108,8 @@ def test_negation_and_direction_contradictions(text: str, expected: NumericSlots
 )
 def test_direction_word_does_not_cross_a_consumed_span(text: str, expected: NumericSlots) -> None:
     assert parse_numeric(text) == expected
+
+
+def test_short_lakh_before_km_is_a_km_limit() -> None:
+    n = parse_numeric("under 1.5L km, budget 5 lakh")
+    assert n.max_km == 150_000 and n.budget_max == 500_000
