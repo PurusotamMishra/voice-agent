@@ -190,7 +190,7 @@
   category: hinglish
   turns:
     - say: "Pune mein diesel mini truck jo pachaas hazaar km se kam chala ho"
-      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: chennai}
+      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: pune}
 - id: hi-06
   category: hinglish
   turns:
