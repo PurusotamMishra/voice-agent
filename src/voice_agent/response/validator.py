@@ -1,10 +1,11 @@
 """Code-level anti-hallucination check (F2) for LLM-composed responses. Pure, no I/O.
 
 Known limits (F3): subjective claims without numbers or entities, unsupported comparatives
-("cheapest in Pune"), and "one"/"do" are not treated as number words. Numbers are bound to units,
-but small values stay valid when they carry their own unit (owners "1" only as "1 owner"); numbers
-inside the title (model numbers, year) license those bare numbers only (never with a unit), and
-the exact model/variant name is skipped by the number check; papers, seller and
+("cheapest in Pune"), and a spelled-out number counts only when a unit follows it ("ek lakh",
+"two owners"), so "ek achha option" passes; "one"/"do" are not number words. Numbers are bound
+to units, but small values stay valid when they carry their own unit (owners "1" only as
+"1 owner"); numbers inside the title (model numbers, year) license those bare numbers only (never
+with a unit), and the exact model/variant name is skipped by the number check; papers, seller and
 registration claims are unchecked; magnitude rewordings without digits ("about half") are not
 caught. City and fuel are checked in item sentences only.
 """
@@ -17,11 +18,19 @@ from voice_agent.domain.enums import City
 from voice_agent.response.factsheet import FactSheet, numbers_with_units
 from voice_agent.response.schema import ComposedResponse, Verdict, Violation
 
-_NUMBER_WORDS = re.compile(
-    r"\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|"
+_NUMBER_WORD = (
+    r"two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|"
     r"sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|"
-    r"hundred|dozen|half|couple|ek|chaar|paanch|chhe|saat|aath|nau|das|bees|pachaas|dedh|dhai|"
-    r"sau)\b"
+    r"hundred|dozen|half|couple|ek|chaar|paanch|chhe|saat|aath|nau|das|bees|pachaas|dedh|dhai|sau"
+)
+# A spelled-out number is a claim only when a unit follows ("ek lakh", "two owners");
+# "ek achha option" is ordinary Hinglish.
+_CLAIM_UNIT = (
+    r"(?:lakhs?|lacs?|crores?|million|thousand|hazaar|hundred|kms?|kilomet\w*|kgs?|kilo\w*"
+    r"|tons?|tonnes?|saal|years?|owners?|malik)"
+)
+_NUMBER_WORDS = re.compile(
+    rf"\b(?:{_NUMBER_WORD})(?:[\s-]+(?:{_NUMBER_WORD}|a|of))*[\s-]+{_CLAIM_UNIT}\b"
 )
 # Scale words are fine only directly after a digit ("4.85 lakh").
 _SCALE_WORDS = re.compile(r"(?<!\d)(?<!\d )\b(lakhs?|lacs?|crores?|million|thousand|hazaar)\b")

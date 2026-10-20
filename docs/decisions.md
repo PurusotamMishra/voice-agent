@@ -207,6 +207,7 @@ Fill this in as decisions are made; it goes into the README verbatim.
   - Numbers that coincidentally equal another valid field value.
   - Unsupported comparatives ("cheapest in Pune") that sound factual but aren't checked.
   - TTS mispronunciation of a correct number, and STT errors upstream (D6 handles those).
+  - A spelled-out number with no unit after it ("ek achha option", "a couple of picks") is not checked (2026-10-20, review finding 9). With a unit ("ek lakh", "two owners", "paanch saal") it still fails.
 - **F4 — Code pre-formats all numbers for speech.** DECIDED. The fact sheet carries display strings ("₹4.8 lakh", "48,000 km", "1,030 kg payload", "2019 model"); the LLM is told to copy them verbatim; the validator matches exact strings first and falls back to numeric parsing.
 - **F5 — Follow-ups are answered only from the referenced record, fetched by ID.** DECIDED. Same validator, with the fact sheet = that one record. A field we don't have (e.g. "service history") → "That's not in the listing" (templated), never guessed.
 

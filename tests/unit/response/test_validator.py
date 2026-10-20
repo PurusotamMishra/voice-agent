@@ -141,11 +141,9 @@ def test_extra_number_words_fail() -> None:
         "Tata Ace Gold, sixty kilometres.",
         "Tata Ace Gold, a dozen owners.",
         "Tata Ace Gold at half a lakh.",
-        "Tata Ace Gold, a couple of picks.",
         "Tata Ace Gold, eighty-five thousand.",
         "Tata Ace Gold, das hazaar.",
         "Tata Ace Gold at ₹4.85 million.",
-        "Tata Ace Gold, bees.",
     ]:
         assert _bad(s), s
 
@@ -202,3 +200,18 @@ def test_title_numbers_license_bare_numbers_only() -> None:
 
 def test_three_wheeler_with_extra_spaces_is_not_a_number_word() -> None:
     assert not _bad("Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto three  wheeler at ₹3 lakh.")
+
+
+def test_number_words_without_a_unit_are_allowed() -> None:
+    assert not _bad("Ek achha option hai Tata Ace Gold, ₹4.85 lakh mein.")
+    assert not _bad("Tata Ace Gold at ₹4.85 lakh, a couple of good picks.")
+
+
+def test_number_words_with_a_unit_still_fail() -> None:
+    for s in [
+        "Tata Ace Gold, ek lakh km chali hai.",
+        "Tata Ace Gold, paanch saal purani.",
+        "Tata Ace Gold, two owners.",
+        "Tata Ace Gold, a couple of years old.",
+    ]:
+        assert _bad(s), s
