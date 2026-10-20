@@ -1,33 +1,39 @@
 /* One stylesheet (standards §8). Motif: active filters are Indian commercial number plates. */
+/* Dark "night highway" theme: tarmac page, cab-interior surfaces, road-paint ink. The yellow
+   plates are the brightest thing on screen; the mic, the main control, is road-paint white. */
 :root {
-  --concrete: #e6e9e7; /* page */
-  --surface: #ffffff;
-  --ink: #1f2a30;
-  --ink-2: #4f5b62;
-  --ink-3: #7d878c;
-  --rule: #cfd5d2;
+  color-scheme: dark;
+  --concrete: #1b2228; /* page: tarmac */
+  --surface: #232c33; /* panels: cab interior */
+  --raised: #2e3940; /* bot bubbles, inputs, bar tracks */
+  --steel: #3a4f5c; /* the buyer's own bubbles */
+  --ink: #e9ece6; /* road paint */
+  --ink-2: #aab4b6;
+  --ink-3: #7b878b;
+  --rule: #36424a;
   --plate: #f6c700; /* commercial plate yellow */
   --plate-ink: #000000;
-  --brake: #c62d1f; /* recording, failures */
-  --go: #1e7f4f; /* validator pass */
-  --amber: #8a5a00; /* fallbacks */
-  /* ranking features: categorical slots 1-5, fixed order (validated, light surface) */
-  --f-price: #2a78d6;
-  --f-low_km: #eb6834;
-  --f-newer_year: #1baf7a;
-  --f-papers_verified: #eda100;
-  --f-purpose_fit: #e87ba4;
+  --brake: #f0604f; /* recording, failures */
+  --go: #57c98f; /* validator pass */
+  --amber: #e8b04a; /* fallbacks */
+  /* ranking features: categorical slots 1-5, fixed order, lifted for a dark surface */
+  --f-price: #5b9cf0;
+  --f-low_km: #f0814f;
+  --f-newer_year: #3cc993;
+  --f-papers_verified: #f2b631;
+  --f-purpose_fit: #f08fb4;
   font-family: "Barlow", system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.45;
   color: var(--ink);
   background: var(--concrete);
   font-variant-numeric: tabular-nums;
+  scrollbar-color: var(--rule) transparent;
 }
 * { box-sizing: border-box; }
-body { margin: 0; }
+body { margin: 0; background: var(--concrete); }
 button, input, select { font: inherit; color: inherit; }
-:focus-visible { outline: 3px solid var(--f-price); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--plate); outline-offset: 2px; }
 
 .app { max-width: 1320px; margin: 0 auto; padding: 20px 16px 32px; }
 
@@ -66,25 +72,26 @@ button, input, select { font: inherit; color: inherit; }
 .hint { color: var(--ink-3); margin: auto 0; text-align: center; }
 .hint em { font-style: normal; color: var(--ink-2); }
 .msg { max-width: 88%; padding: 10px 14px; border-radius: 14px; }
-.msg.you { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
-.msg.bot { align-self: flex-start; background: var(--concrete); border-bottom-left-radius: 4px; }
+.msg.you { align-self: flex-end; background: var(--steel); color: var(--ink); border-bottom-right-radius: 4px; }
+.msg.bot { align-self: flex-start; background: var(--raised); border-bottom-left-radius: 4px; }
 .msg .via { display: block; font-size: 12px; opacity: .65; margin-bottom: 2px; }
 
 .composer { border-top: 1px solid var(--rule); padding: 14px 16px 16px; display: grid; gap: 10px; }
 .mic-row { display: flex; align-items: center; gap: 14px; }
 .ptt {
   flex: 0 0 auto; width: 76px; height: 76px; border-radius: 50%; border: 0; cursor: pointer;
-  background: var(--ink); color: #fff; user-select: none; touch-action: none;
+  background: var(--ink); color: var(--concrete); user-select: none; touch-action: none;
   display: grid; place-items: center;
 }
 .ptt svg { width: 30px; height: 30px; }
-.ptt.recording { background: var(--brake); box-shadow: 0 0 0 8px rgba(198, 45, 31, .18); }
-.ptt:disabled { background: var(--ink-3); cursor: default; }
+.ptt.recording { background: var(--brake); color: #fff; box-shadow: 0 0 0 8px rgba(240, 96, 79, .22); }
+.ptt:disabled { background: var(--raised); color: var(--ink-3); cursor: default; }
 .mic-label { font-weight: 600; }
 .mic-label span { display: block; font-weight: 400; font-size: 14px; color: var(--ink-3); }
 .typed { display: flex; gap: 8px; }
-.typed input { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--rule); border-radius: 8px; }
-.typed button { padding: 9px 16px; border: 0; border-radius: 8px; background: var(--concrete); cursor: pointer; font-weight: 600; }
+.typed input { flex: 1; min-width: 0; padding: 9px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--raised); }
+.typed input::placeholder { color: var(--ink-3); }
+.typed button { padding: 9px 16px; border: 0; border-radius: 8px; background: var(--ink); color: var(--concrete); cursor: pointer; font-weight: 600; }
 .typed button:disabled { opacity: .5; cursor: default; }
 .error { color: var(--brake); margin: 0; font-size: 14px; }
 
@@ -102,7 +109,7 @@ button, input, select { font: inherit; color: inherit; }
 .car .score { font-family: "Barlow Condensed", sans-serif; font-size: 26px; font-weight: 700; text-align: right; line-height: 1; }
 .car .score small { display: block; font-family: "Barlow", sans-serif; font-size: 12px; font-weight: 400; color: var(--ink-3); }
 .car .why { grid-column: 2 / 4; }
-.bar { display: flex; gap: 2px; height: 10px; background: var(--concrete); border-radius: 5px; overflow: hidden; margin: 8px 0 6px; }
+.bar { display: flex; gap: 2px; height: 10px; background: var(--raised); border-radius: 5px; overflow: hidden; margin: 8px 0 6px; }
 .bar i { display: block; height: 100%; }
 .legend { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 13px; color: var(--ink-2); margin: 0; padding: 0; list-style: none; }
 .legend li { display: flex; align-items: center; gap: 5px; }
@@ -115,10 +122,10 @@ button, input, select { font: inherit; color: inherit; }
 .headline b { font-family: "Barlow Condensed", sans-serif; font-size: 40px; line-height: 1; white-space: nowrap; }
 .headline span { color: var(--ink-2); }
 .timeline { display: flex; gap: 2px; height: 28px; }
-.timeline div { background: var(--ink-2); color: #fff; font-size: 12px; padding: 0 6px; display: block; line-height: 28px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 4px; }
+.timeline div { background: var(--raised); color: var(--ink); font-size: 12px; padding: 0 6px; display: block; line-height: 28px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 4px; }
 .timeline div:first-child { border-radius: 4px 0 0 4px; }
 .timeline div:last-child { border-radius: 0 4px 4px 0; }
-.timeline div.top-stage { background: var(--ink); }
+.timeline div.top-stage { background: var(--ink-2); color: var(--concrete); font-weight: 600; }
 .stages { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px; }
 .stages td { padding: 4px 0; border-bottom: 1px solid var(--rule); }
 .stages td:last-child { text-align: right; }
@@ -128,7 +135,7 @@ button, input, select { font: inherit; color: inherit; }
 .tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 14px; background: var(--surface); border: 1px solid var(--rule); }
 .tag.ok { color: var(--go); border-color: var(--go); }
 .tag.bad { color: var(--brake); border-color: var(--brake); }
-.tag.fallback { color: var(--amber); border-color: #d9b45a; }
+.tag.fallback { color: var(--amber); border-color: var(--amber); }
 .violation { color: var(--brake); font-size: 14px; width: 100%; }
 
 details.sql { background: var(--surface); border-radius: 12px; padding: 12px 16px; }
