@@ -102,6 +102,7 @@ export default function App() {
 
   const onPress = async () => {
     if (busy || recording) return;
+    queue.current.reset(); // barge-in: stop the previous reply as soon as the buyer presses
     try {
       await start();
     } catch {
