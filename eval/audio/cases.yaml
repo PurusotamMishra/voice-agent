@@ -1,7 +1,6 @@
-# Audio subset (J1). Clips live next to this file. `synthetic: true` marks stand-ins: the committed clips were
-# made with Windows SAPI (Microsoft David, en-US) because no ElevenLabs key was available; en-03 has white noise added
-# (scripts/make_eval_audio.py add_noise). `synthetic: true` also covers ElevenLabs stand-ins
-# (scripts/make_eval_audio.py); replace them with real recordings under the same names when you can.
+# Audio subset (J1). Clips live next to this file. `synthetic: true` marks ElevenLabs stand-ins
+# (scripts/make_eval_audio.py, Flash v2.5, premade voice; en-03 has white noise added). Replace them with real
+# recordings under the same names when you can; make_eval_audio.py keeps existing files unless --force.
 - file: en-01.wav
   language: en
   synthetic: true
