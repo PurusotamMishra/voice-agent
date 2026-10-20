@@ -63,6 +63,15 @@ async def test_sarvam_stt_sends_mode_and_key() -> None:
     assert b"translit" in seen[0].content and b"saaras:v3" in seen[0].content
 
 
+async def test_sarvam_stt_drops_codec_parameter_from_content_type() -> None:
+    # Browsers record "audio/webm;codecs=opus"; Sarvam accepts only the bare type (HTTP 400 otherwise).
+    seen: list[httpx.Request] = []
+    async with _client({"transcript": "x"}, seen) as client:
+        stt = SarvamSTT("sk", "saaras:v3", "translit", client)
+        await stt.transcribe(b"x", "speech.webm", "audio/webm;codecs=opus")
+    assert b"Content-Type: audio/webm\r\n" in seen[0].content and b"codecs" not in seen[0].content
+
+
 async def test_groq_non_json_body_raises_provider_error() -> None:
     async with _raw_client(b"<html>oops</html>") as client:
         stt = GroqSTT("k", "m", client)

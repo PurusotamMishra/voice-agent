@@ -96,7 +96,8 @@ class SarvamSTT:
             backoff=self._backoff,
             headers={"api-subscription-key": self._key},
             data={"model": self._model, "mode": self._mode, "language_code": "hi-IN"},
-            files={"file": (filename, audio, content_type)},
+            # Sarvam rejects "audio/webm;codecs=opus" (what browsers record) but takes "audio/webm".
+            files={"file": (filename, audio, content_type.split(";")[0].strip())},
         )
         body = json_body(self.name, resp)
         try:
