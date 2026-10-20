@@ -46,8 +46,10 @@ def _svc(**kw: Any) -> VoiceServices:
 
 
 async def test_typed_turn_event_order_and_sentence_audio() -> None:
-    svc = _svc()
+    tts = FakeTTS()
+    svc = _svc(tts=tts)
     ev = await _events(svc, TurnInput(session_id="s", text="Tata Ace in Pune"))
+    assert tts.spoken == _result("s", "x").response.sentences()
     assert [e["type"] for e in ev] == [
         "transcript", "understanding", "search", "sentence", "sentence", "sentence", "done",
     ]  # fmt: skip
@@ -112,3 +114,35 @@ async def test_turn_is_logged_with_turn_id(tmp_path: Any) -> None:
     record = json.loads(log.read_text(encoding="utf-8").splitlines()[0])
     assert record["turn_id"] == ev[-1]["turn_id"] and record["tts_mode"] == "sentence"
     assert record["input"] == "typed" and record["sql"] == "SELECT 1"
+
+
+async def test_fallbacks_are_logged_as_warnings(caplog: Any) -> None:
+    stt = {"en": SttChoice(FakeSTT("hi"), ("stt_hinglish_groq",))}
+    with caplog.at_level("WARNING"):
+        await _events(_svc(stt=stt, tts=None), TurnInput(session_id="s", audio=b"a"))
+    messages = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert any("stt_hinglish_groq" in m for m in messages)
+    assert any("no server TTS" in m for m in messages)
+
+
+async def test_turn_log_failure_does_not_drop_done(tmp_path: Any, caplog: Any) -> None:
+    blocker = tmp_path / "file"
+    blocker.write_text("x", encoding="utf-8")
+    with caplog.at_level("WARNING"):
+        ev = await _events(
+            _svc(turn_log_path=blocker / "turns.jsonl"), TurnInput(session_id="s", text="x")
+        )
+    assert ev[-1]["type"] == "done"
+    assert any("could not write turn log" in r.getMessage() for r in caplog.records)
+
+
+async def test_empty_tts_audio_is_a_failure() -> None:
+    class EmptyTTS:
+        name = "empty"
+
+        async def synthesize(self, text: str) -> bytes:
+            return b""
+
+    ev = await _events(_svc(tts=EmptyTTS()), TurnInput(session_id="s", text="x"))
+    assert all(e["tts"] == "client" for e in ev if e["type"] == "sentence")
+    assert ev[-1]["fallback_used"].count("tts_client") == 1

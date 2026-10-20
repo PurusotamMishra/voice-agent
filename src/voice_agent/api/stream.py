@@ -99,6 +99,8 @@ async def _transcribe(svc: VoiceServices, inp: TurnInput, t: _Turn) -> tuple[str
         log.warning("no STT configured for %s", inp.language)
         t.fallbacks.append("stt_unavailable")
         return "", _transcript_event("", "stt", None, None, None)
+    if choice.fallbacks:
+        log.warning("stt fallback used: %s", ", ".join(choice.fallbacks))
     t.fallbacks += choice.fallbacks
     try:
         with timed() as sw:
@@ -122,6 +124,7 @@ async def _speak(
 ) -> AsyncIterator[dict[str, Any]]:
     tts = svc.tts
     if tts is None:
+        log.warning("no server TTS configured, browser will speak")
         t.fallbacks.append("tts_client")
     tts_ms = 0.0
     for index, text in enumerate(sentences):
@@ -130,6 +133,8 @@ async def _speak(
             try:
                 with timed() as sw:
                     audio = await tts.synthesize(text)
+                if not audio:
+                    raise ProviderError(tts.name, "empty audio")
                 tts_ms += sw.ms
                 t.usage.append(Usage(provider=f"{tts.name}-tts", characters=len(text)))
             except ProviderError as exc:  # H5: the browser speaks the rest of this turn
@@ -206,4 +211,7 @@ def _log_turn(
         fallback_used=done["fallback_used"],
         usage=done["usage"],
     )
-    append_turn(svc.turn_log_path, record)
+    try:
+        append_turn(svc.turn_log_path, record)
+    except OSError as exc:  # never lose the done event over a log write
+        log.warning("could not write turn log: %s", exc)
