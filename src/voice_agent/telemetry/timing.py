@@ -18,3 +18,13 @@ def timed() -> Iterator[Stopwatch]:
         yield sw
     finally:
         sw.ms = round((time.perf_counter() - start) * 1000, 1)
+
+
+class Clock:
+    """Offsets from one start point, e.g. 'first audio ready 2.1 s after the request arrived'."""
+
+    def __init__(self) -> None:
+        self._start = time.perf_counter()
+
+    def ms(self) -> float:
+        return round((time.perf_counter() - self._start) * 1000, 1)

@@ -24,6 +24,8 @@ class Usage(BaseModel):
     provider: str
     input_tokens: int = 0
     output_tokens: int = 0
+    audio_seconds: float = 0.0  # STT (L5)
+    characters: int = 0  # TTS (L5)
 
 
 @dataclass(frozen=True)
@@ -61,3 +63,31 @@ class Catalog(Protocol):
     async def count(self, filters: Filters) -> int: ...
 
     async def get(self, listing_id: str) -> Listing | None: ...
+
+
+class Transcript(BaseModel):
+    text: str
+    provider: str
+    language: str | None = None
+    confidence: float | None = None  # 0..1, only when the vendor reports something usable
+    audio_seconds: float = 0.0  # 0 when the vendor does not report it
+
+
+class SpeechToText(Protocol):
+    name: str
+
+    async def transcribe(self, audio: bytes, filename: str, content_type: str) -> Transcript: ...
+
+
+class TextToSpeech(Protocol):
+    name: str
+
+    async def synthesize(self, text: str) -> bytes: ...
+
+
+@dataclass(frozen=True)
+class SttChoice:
+    """The STT used for one input language, plus the fallbacks that choice implies (N3)."""
+
+    stt: SpeechToText
+    fallbacks: tuple[str, ...] = ()
