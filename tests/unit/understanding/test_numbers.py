@@ -48,3 +48,63 @@ def test_km_and_budget_in_one_sentence() -> None:
 def test_has_budget() -> None:
     assert parse_numeric("under 5 lakh").has_budget
     assert not parse_numeric("under 50000 km").has_budget
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "pickup under 5 lakh with less than fifty thousand km",
+            NumericSlots(budget_max=500_000, max_km=50_000),
+        ),
+        (
+            "5 lakh tak, pachaas hazaar km ke andar",
+            NumericSlots(budget_max=500_000, max_km=50_000),
+        ),
+        ("twenty thousand km", NumericSlots(max_km=20_000)),
+        ("fifteen thousand km", NumericSlots(max_km=15_000)),
+        ("bees hazaar km", NumericSlots(max_km=20_000)),
+        ("assi hazaar km tak", NumericSlots(max_km=80_000)),
+        ("chaalis hazaar km", NumericSlots(max_km=40_000)),
+        ("twenty five thousand km", NumericSlots(max_km=25_000)),
+        ("ninety people", NumericSlots()),  # no unit -> no conversion
+    ],
+)
+def test_tens_words_need_a_unit(text: str, expected: NumericSlots) -> None:
+    assert parse_numeric(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("not above 5 lakh", NumericSlots(budget_max=500_000)),
+        ("not over 5 lakh", NumericSlots(budget_max=500_000)),
+        # Direction contradictions on km/payload drop the value instead of inverting it.
+        ("payload under 2 tons", NumericSlots(dropped=frozenset({"min_payload_kg"}))),
+        ("2 ton tak payload", NumericSlots(dropped=frozenset({"min_payload_kg"}))),
+        ("over 2 lakh km", NumericSlots(dropped=frozenset({"max_km"}))),
+        ("more than 50000 km", NumericSlots(dropped=frozenset({"max_km"}))),
+        ("50000 km se zyada", NumericSlots(dropped=frozenset({"max_km"}))),
+        ("not more than 50000 km", NumericSlots(max_km=50_000)),
+        (
+            "under 5 lakh, more than 50000 km",
+            NumericSlots(budget_max=500_000, dropped=frozenset({"max_km"})),
+        ),
+    ],
+)
+def test_negation_and_direction_contradictions(text: str, expected: NumericSlots) -> None:
+    assert parse_numeric(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # A consumed span ends the direction context: "under" belongs to the km only.
+        ("under 50000 km and 1 ton payload", NumericSlots(max_km=50_000, min_payload_kg=1_000)),
+        ("above 2 tons, 5 lakh", NumericSlots(budget_max=500_000, min_payload_kg=2_000)),
+        ("2018 ke baad, over 1 ton", NumericSlots(min_payload_kg=1_000, min_year=2018)),
+        ("50000 km tak, 1 ton", NumericSlots(max_km=50_000, min_payload_kg=1_000)),
+    ],
+)
+def test_direction_word_does_not_cross_a_consumed_span(text: str, expected: NumericSlots) -> None:
+    assert parse_numeric(text) == expected

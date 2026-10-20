@@ -32,7 +32,6 @@ async def test_parser_overrides_llm_budget_and_city_is_normalised() -> None:
     )
     assert u.updates == {
         "body_type": BodyType.MINI_TRUCK,
-        "budget_min": None,
         "budget_max": 500_000,
         "budget_target": None,
         "city": "pune",
@@ -104,3 +103,93 @@ def test_prompt_maps_vehicle_class_names_to_body_type() -> None:
     prompt = build_system_prompt({k: {} for k in AliasKind})
     assert '"light commercial vehicle" -> lcv' in prompt
     assert '"intermediate commercial vehicle" -> icv' in prompt
+
+
+async def _updates(text: str, slots: ExtractedSlots | None = None) -> dict[str, object]:
+    llm = FakeLLM([TurnIntent(intent=Intent.SEARCH, slots=slots or ExtractedSlots())])
+    u = await understand(text, CTX, LLMSlotExtractor(llm, ALIASES), NORM, ALIASES)
+    return u.updates
+
+
+async def test_parser_finds_spelled_out_km_alongside_budget() -> None:
+    updates = await _updates("pickup under 5 lakh with less than fifty thousand km")
+    assert updates["budget_max"] == 500_000 and updates["max_km"] == 50_000
+
+
+async def test_hinglish_tens_word_km_and_budget() -> None:
+    updates = await _updates("5 lakh tak, pachaas hazaar km ke andar")
+    assert updates["budget_max"] == 500_000 and updates["max_km"] == 50_000
+
+
+async def test_llm_value_kept_for_a_field_the_parser_missed() -> None:
+    # Parser finds the budget but not the km (no unit); the LLM's km survives (per-field override).
+    updates = await _updates(
+        "under 5 lakh, pachaas hazaar se kam chala ho",
+        ExtractedSlots(budget_max=400_000, max_km=50_000),
+    )
+    assert updates == {"budget_max": 500_000, "budget_target": None, "max_km": 50_000}
+
+
+async def test_llm_value_equal_to_a_parsed_number_is_rejected() -> None:
+    updates = await _updates("under 5 lakh", ExtractedSlots(max_km=500_000))
+    assert "max_km" not in updates
+
+
+async def test_parser_wins_on_its_own_fields() -> None:
+    updates = await _updates("under 5 lakh, 50k km", ExtractedSlots(max_km=60_000))
+    assert updates["max_km"] == 50_000
+
+
+async def test_llm_budget_ignored_when_parser_found_any_budget_bound() -> None:
+    updates = await _updates("at least 3 lakh", ExtractedSlots(budget_max=900_000))
+    assert updates == {"budget_min": 300_000}
+
+
+async def test_budget_writes_only_found_bounds() -> None:
+    assert await _updates("under 5 lakh") == {"budget_max": 500_000, "budget_target": None}
+    assert await _updates("at least 3 lakh") == {"budget_min": 300_000}
+    assert await _updates("4 se 6 lakh") == {
+        "budget_min": 400_000,
+        "budget_max": 600_000,
+        "budget_target": None,
+    }
+    assert await _updates("around 6 lakh") == {
+        "budget_min": None,
+        "budget_max": 660_000,
+        "budget_target": 600_000,
+    }
+
+
+async def test_llm_budget_writes_only_found_bounds() -> None:
+    assert await _updates("minimum budget", ExtractedSlots(budget_min=300_000)) == {
+        "budget_min": 300_000
+    }
+
+
+async def test_two_budget_turns_keep_both_walls_through_the_reducer() -> None:
+    from voice_agent.state.models import Memory
+    from voice_agent.state.reducer import apply_understanding
+
+    mem = Memory()
+    for text in ("under 5 lakh", "at least 3 lakh"):
+        llm = FakeLLM([TurnIntent(intent=Intent.SEARCH)])
+        u = await understand(text, CTX, LLMSlotExtractor(llm, ALIASES), NORM, ALIASES)
+        mem, diff, _ = apply_understanding(mem, u)
+    assert (mem.slots.budget_min, mem.slots.budget_max) == (300_000, 500_000)
+    assert diff == {"budget_min": (None, 300_000)}
+
+
+async def test_llm_cannot_refill_a_km_the_parser_dropped() -> None:
+    # "over 2 lakh km" contradicts max_km; the parser drops it and the LLM's 200000 must not return.
+    updates = await _updates("over 2 lakh km", ExtractedSlots(max_km=200_000))
+    assert "max_km" not in updates
+
+
+async def test_llm_cannot_refill_a_payload_the_parser_dropped() -> None:
+    updates = await _updates("payload under 2 tons", ExtractedSlots(min_payload_kg=2_000))
+    assert "min_payload_kg" not in updates
+
+
+async def test_payload_after_a_km_limit_is_kept() -> None:
+    updates = await _updates("under 50000 km and 1 ton payload")
+    assert updates["max_km"] == 50_000 and updates["min_payload_kg"] == 1_000

@@ -16,6 +16,7 @@ from voice_agent.understanding.schema import ExtractionContext, TurnIntent, Unde
 TRGM_ACCEPT = 0.6  # D6: at or above -> accept silently
 TRGM_CONFIRM = 0.3  # D6: between CONFIRM and ACCEPT -> ask "did you mean ...?"
 _BUDGET = ("budget_min", "budget_max", "budget_target")
+_NUMERIC = (*_BUDGET, "max_km", "min_payload_kg", "min_year")
 log = logging.getLogger(__name__)
 
 
@@ -78,22 +79,25 @@ def _slot_updates(ti: TurnIntent, numeric: NumericSlots) -> dict[str, Any]:
         value = getattr(s, name)
         if value is not None:
             updates[name] = value
-    parser_found = numeric.has_budget or any(
-        getattr(numeric, n) is not None for n in ("max_km", "min_payload_kg", "min_year")
-    )
-    if numeric.has_budget:  # D3: the parser wins on numbers
+    # D3 per field: the parser wins on fields it found. For the rest the LLM value is kept,
+    # unless it equals a number the parser read this turn (the LLM mis-assigned that number,
+    # e.g. "80000 km" also returned as budget_max=80000). Budget bounds are one group.
+    parsed = {getattr(numeric, n) for n in _NUMERIC} - {None}
+    if numeric.has_budget:
         updates.update(
-            budget_min=numeric.budget_min,
-            budget_max=numeric.budget_max,
-            budget_target=numeric.budget_target,
+            _budget_writes(numeric.budget_min, numeric.budget_max, numeric.budget_target)
         )
-    elif not parser_found and any(getattr(s, b) is not None for b in _BUDGET):
-        cap = round(s.budget_target * 1.1) if s.budget_target else s.budget_max
-        updates.update(budget_min=s.budget_min, budget_max=cap, budget_target=s.budget_target)
+    else:
+        lo, hi, target = (_unless_parsed(getattr(s, b), parsed) for b in _BUDGET)
+        if target is not None:
+            hi = round(target * 1.1)  # D5: "around X" caps at 1.1*X
+        updates.update(_budget_writes(lo, hi, target))
     for name in ("max_km", "min_payload_kg", "min_year"):
         value = getattr(numeric, name)
-        if value is None and not parser_found:
-            value = getattr(s, name)
+        if name in numeric.dropped:
+            continue  # the parser dropped a contradictory phrase; the LLM must not re-fill it
+        if value is None:
+            value = _unless_parsed(getattr(s, name), parsed)
         if value is not None:
             updates[name] = value
     for name in ti.clear_slots:
@@ -102,3 +106,20 @@ def _slot_updates(ti: TurnIntent, numeric: NumericSlots) -> dict[str, Any]:
         else:
             updates[name] = None
     return updates
+
+
+def _unless_parsed(value: int | None, parsed: set[int | None]) -> int | None:
+    return None if value in parsed else value
+
+
+def _budget_writes(lo: int | None, hi: int | None, target: int | None) -> dict[str, Any]:
+    """Write only the bounds stated this turn, so "at least 3 lakh" keeps an earlier max.
+    A range or "around X" replaces the whole budget; a new max also drops an old target."""
+    if target is not None or (lo is not None and hi is not None):
+        return {"budget_min": lo, "budget_max": hi, "budget_target": target}
+    writes: dict[str, Any] = {}
+    if hi is not None:
+        writes.update(budget_max=hi, budget_target=None)
+    if lo is not None:
+        writes["budget_min"] = lo
+    return writes

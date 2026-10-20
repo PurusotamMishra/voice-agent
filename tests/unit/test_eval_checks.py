@@ -7,6 +7,8 @@ from typing import Any
 
 import pytest
 
+from tests.fakes import make_listing
+from voice_agent.domain.models import ScoredListing
 from voice_agent.graph.runner import TurnResult
 from voice_agent.response import templates
 from voice_agent.response.schema import Verdict
@@ -72,8 +74,46 @@ def test_summary_shows_na_safety_when_nothing_shown(run_eval: ModuleType) -> Non
         "timings": {"total": [1.0]},
         "shown": 0,
         "unsafe": 0,
+        "recheck_shown": 0,
+        "recheck_unsafe": 0,
     }
     summary = run_eval.summarise(result)
-    assert "Constraint safety: n/a" in summary
+    assert "Constraint safety (vs stated constraints): n/a" in summary
+    assert "Re-check (vs executed filters): n/a" in summary
     assert "2026-01-01 00:00 UTC" in summary and "known_failures.md" in summary
     assert run_eval.pass_rate(result) == 1.0
+
+
+def _shown(price: int) -> ScoredListing:
+    return ScoredListing(
+        listing=make_listing(price_inr=price), rank=1, score=1.0, features={}, contributions={}
+    )
+
+
+def test_safety_is_measured_against_stated_constraints(run_eval: ModuleType) -> None:
+    # The pipeline dropped the budget (filters={}); its own re-check cannot see that,
+    # the stated-constraint check must.
+    r = _result("search", filters={}, results=[_shown(400_000), _shown(600_000)])
+    assert run_eval.recheck_violations(r) == 0
+    assert run_eval.safety_violations(r, {"budget_max": 500_000}) == 1
+    assert run_eval.safety_violations(r, {}) == 0
+
+
+def test_recheck_counts_breaks_of_executed_filters(run_eval: ModuleType) -> None:
+    r = _result("search", filters={"budget_max": 500_000}, results=[_shown(600_000)])
+    assert run_eval.recheck_violations(r) == 1
+
+
+def test_summary_reports_both_safety_lines(run_eval: ModuleType) -> None:
+    result = {
+        "run_at": "2026-01-01 00:00 UTC",
+        "cases": [{"id": "x", "category": "other", "passed": True, "failures": []}],
+        "timings": {"total": [1.0]},
+        "shown": 10,
+        "unsafe": 1,
+        "recheck_shown": 12,
+        "recheck_unsafe": 0,
+    }
+    summary = run_eval.summarise(result)
+    assert "Constraint safety (vs stated constraints): 90.0% of 10" in summary
+    assert "Re-check (vs executed filters): 0 of 12" in summary

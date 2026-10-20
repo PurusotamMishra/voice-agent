@@ -66,7 +66,16 @@ def check_turn(expect: dict[str, Any], r: TurnResult) -> list[str]:
     return failures
 
 
-def safety_violations(r: TurnResult) -> int:
+def safety_violations(r: TurnResult, stated: dict[str, Any]) -> int:
+    """Shown results that break a constraint the user stated (the case's expect_filters).
+    Independent of the pipeline: a dropped or loosened slot shows up here."""
+    f = Filters.model_validate(stated)
+    return sum(1 for s in r.results if constraint_violations(s.listing, f))
+
+
+def recheck_violations(r: TurnResult) -> int:
+    """Shown results that break the pipeline's own executed filters. The search node already
+    runs this re-check (F2.3), so it is expected to be 0; it guards the SQL builder only."""
     if not r.filters:
         return 0
     f = Filters.model_validate(r.filters)
@@ -76,7 +85,7 @@ def safety_violations(r: TurnResult) -> int:
 async def run_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
     report: list[dict[str, Any]] = []
     timings: dict[str, list[float]] = defaultdict(list)
-    shown = unsafe = 0
+    shown = unsafe = recheck_shown = recheck_unsafe = 0
     run_at = _now()
     async with build_runtime(get_settings(), log_turns=False) as runner:
         for case in cases:
@@ -85,8 +94,11 @@ async def run_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
             for i, turn in enumerate(case["turns"], start=1):
                 r = await runner.run(session, turn["say"])
                 failures += [f"t{i}: {f}" for f in check_turn(turn, r)]
-                shown += len(r.results)
-                unsafe += safety_violations(r)
+                recheck_shown += len(r.results)
+                recheck_unsafe += recheck_violations(r)
+                if "expect_filters" in turn:
+                    shown += len(r.results)
+                    unsafe += safety_violations(r, turn["expect_filters"])
                 for stage, ms in r.timings_ms.items():
                     timings[stage].append(ms)
             report.append(
@@ -104,6 +116,8 @@ async def run_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
         "timings": timings,
         "shown": shown,
         "unsafe": unsafe,
+        "recheck_shown": recheck_shown,
+        "recheck_unsafe": recheck_unsafe,
     }
 
 
@@ -129,12 +143,24 @@ def summarise(result: dict[str, Any]) -> str:
     lines += [f"| {cat} | {sum(v)}/{len(v)} |" for cat, v in sorted(by_cat.items())]
     if result["shown"]:
         safe_pct = 100 * (1 - result["unsafe"] / result["shown"])
-        safety = f"{safe_pct:.1f}% of {result['shown']} shown results satisfy every hard filter."
+        safety = (
+            f"{safe_pct:.1f}% of {result['shown']} results shown on turns with expect_filters "
+            "satisfy every constraint the user stated."
+        )
     else:
-        safety = "n/a (no results were shown)."
+        safety = "n/a (no results shown on turns with expect_filters)."
+    if result.get("recheck_shown"):
+        recheck = (
+            f"{result['recheck_unsafe']} of {result['recheck_shown']} shown results break the "
+            "pipeline's own executed filters (expected 0: the search node re-checks them)."
+        )
+    else:
+        recheck = "n/a (no results were shown)."
     lines += [
         "",
-        f"Constraint safety: {safety}",
+        f"Constraint safety (vs stated constraints): {safety}",
+        "",
+        f"Re-check (vs executed filters): {recheck}",
         "",
         "| Stage | p50 ms | p95 ms |",
         "|---|---|---|",

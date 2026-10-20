@@ -3,7 +3,8 @@
 Known limits (F3): subjective claims without numbers or entities, unsupported comparatives
 ("cheapest in Pune"), and "one"/"do" are not treated as number words. Numbers are bound to units,
 but small values stay valid when they carry their own unit (owners "1" only as "1 owner"); numbers
-inside the title (model numbers, year) license those bare numbers; papers, seller and
+inside the title (model numbers, year) license those bare numbers only (never with a unit), and
+the exact model/variant name is skipped by the number check; papers, seller and
 registration claims are unchecked; magnitude rewordings without digits ("about half") are not
 caught. City and fuel are checked in item sentences only.
 """
@@ -25,7 +26,7 @@ _NUMBER_WORDS = re.compile(
 # Scale words are fine only directly after a digit ("4.85 lakh").
 _SCALE_WORDS = re.compile(r"(?<!\d)(?<!\d )\b(lakhs?|lacs?|crores?|million|thousand|hazaar)\b")
 # Body-type words ("three-wheeler") are honest descriptions, not numeric claims.
-_BODY_TYPE_WORDS = re.compile(r"\b(three|four)[- ]wheelers?\b")
+_BODY_TYPE_WORDS = re.compile(r"\b(three|four)[-\s]+wheelers?\b")
 # Listing ids are internal keys, never spoken; stripped before the number check so the
 # digits are not reported twice.
 _LISTING_ID = re.compile(r"\bVH-\d+\b", re.IGNORECASE)
@@ -70,7 +71,8 @@ def validate(resp: ComposedResponse, facts: FactSheet, vocab: EntityVocab) -> Ve
         fact = by_id.get(sentence.listing_id)
         if fact is None:
             continue
-        violations += _numbers(sentence.text, fact.allowed_numbers(), sentence.listing_id)
+        text = _blank_phrases(sentence.text, fact.name_phrases())
+        violations += _numbers(text, fact.allowed_numbers(), sentence.listing_id)
         for kind, name in vocab.find(sentence.text):
             if kind == "make":
                 matches = name == fact.make
@@ -93,6 +95,12 @@ def validate(resp: ComposedResponse, facts: FactSheet, vocab: EntityVocab) -> Ve
             for _, name in vocab.find(text)
         ]
     return Verdict(ok=not violations, violations=violations, source="llm")
+
+
+def _blank_phrases(text: str, phrases: list[str]) -> str:
+    for phrase in phrases:
+        text = re.sub(re.escape(phrase), " ", text, flags=re.IGNORECASE)
+    return text
 
 
 def _city_fuel(text: str, city: str, fuel: str, where: str) -> list[Violation]:

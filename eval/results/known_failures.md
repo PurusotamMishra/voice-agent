@@ -3,7 +3,7 @@
 `run_eval.py` never writes this file. `latest.md` and `latest.json` are regenerated on every run; this file holds the context they cannot.
 
 ## Latest full run
-25/25 with 100% constraint safety. The first run of the day scored 22/25. Triage of those three failures:
+25/25 with 100% constraint safety against the user's stated constraints (44 results), and 0 of 53 results breaking the executed filters (rerun after the final review fixes, 2026-10-19). The first run of the day scored 22/25. Triage of those three failures:
 
 - `en-08` "light commercial vehicle" left `body_type` empty. The LLM did not link the phrase to the `lcv` enum code. Fixed with one rule in the extractor prompt that maps vehicle-class names to `lcv` / `icv`.
 - `zero-02` expected a relaxation offer, but no one-slot loosening returns any rows: Chennai has no mini trucks, and the cheapest electric mini truck costs about 6.8 lakh. E3 forbids offering a suggestion that also returns zero, so the expectation now says no offer is made.
@@ -13,8 +13,11 @@
 Slot extraction is one LLM call (Groq, openai/gpt-oss-120b), so a case that passes today can fail on another run:
 
 - `adversarial-01` ("Tata Aace in Pune"): the prompt tells the LLM to copy mentions verbatim. If it silently corrects "Aace" to "Ace", the alias match is exact, no confirmation is asked, and the case fails on `expect_route: confirm`. The search itself is still correct (model = Ace), so this is a missed clarification, not a wrong result.
-- Over- or under-filling a categorical slot from loose phrasing (the `en-08` class of failure). Numbers are safe here because the deterministic parser overrides the LLM on budget, km, payload and year (D3).
+- Over- or under-filling a categorical slot from loose phrasing (the `en-08` class of failure). Numbers carry less risk but are not immune: the parser wins on each field it found; for a field it missed (e.g. a number said without a unit), the LLM's value is used unless it equals a number the parser read that turn (decisions M3). So an LLM misreading of a unit-less number can still reach a filter.
 - Composer phrasing: a response that fails the validator falls back to regenerate or the template. The answer stays safe (F1), but the eval counts it as a failure ("validator not clean on first try").
 
+## Known parser limit: one km and one payload phrase per turn
+`numbers.py` reads only the first km and the first payload mention. A contradictory first mention is dropped and marked in `NumericSlots.dropped` (decisions M3), and the LLM may not re-fill it. So "over 2 lakh km, under 50000 km" ends with no km wall. The input is contrived and the active slots are on screen, so it is accepted for now.
+
 ## Latency caveat
-`nlu` and `compose` are each a single Groq call. The free tier allows 8,000 tokens/min per model, and the SDK waits out 429s, so the eval's p50/p95 (NLU p50 about 9.6 s, total p95 about 25 s) may include rate-limit backoff and reasoning-token time. Treat them as an upper bound, not steady-state latency. Plan 2 (J5) measures the mitigation.
+`nlu` and `compose` are each a single Groq call. The free tier allows 8,000 tokens/min per model, and the SDK waits out 429s, so the eval's p50/p95 (latest run: NLU p50 5.7 s / p95 16.9 s, total p50 8.2 s / p95 18.6 s; the first run had NLU p50 9.6 s, total p95 ~25 s) may include rate-limit backoff and reasoning-token time. Treat them as an upper bound, not steady-state latency. Plan 2 (J5) measures the mitigation.

@@ -1,7 +1,7 @@
 from tests.fakes import make_listing
 from voice_agent.domain.enums import Language
 from voice_agent.domain.models import ScoredListing
-from voice_agent.response.factsheet import build_fact_sheet
+from voice_agent.response.factsheet import FactSheet, build_fact_sheet
 from voice_agent.response.schema import ComposedResponse, ItemSentence
 from voice_agent.response.validator import EntityVocab, validate
 
@@ -170,3 +170,35 @@ def test_listing_id_in_spoken_text_is_caught() -> None:
     ]
     v2 = validate(resp("Tata Ace Gold.", "Jeeto.", intro="Options vh-12 here."), FACTS, VOCAB)
     assert [(x.where, x.kind) for x in v2.violations] == [("intro", "number")]
+
+
+def _hd_facts() -> FactSheet:
+    hd = make_listing(
+        listing_id="H",
+        make="Mahindra",
+        model="Bolero Maxx Pik-Up",
+        variant="HD 1.7L VXi",
+        price_inr=485_000,
+    )
+    return build_fact_sheet(
+        [ScoredListing(listing=hd, rank=1, score=1.0, features={}, contributions={})],
+        None,
+        Language.EN,
+    )
+
+
+def _hd(text: str) -> bool:
+    r = ComposedResponse(intro="One match.", items=[ItemSentence(listing_id="H", text=text)])
+    return validate(r, _hd_facts(), VOCAB).ok
+
+
+def test_title_numbers_license_bare_numbers_only() -> None:
+    assert ("1.7", "lakh") not in _hd_facts().items[0].allowed_numbers()
+    assert not _hd("The Mahindra Bolero Maxx Pik-Up at ₹1.7 lakh.")
+    assert not _hd("The Mahindra Bolero Maxx Pik-Up, 1.7 km.")
+    assert _hd("The 2020 Mahindra Bolero Maxx Pik-Up HD 1.7L VXi at ₹4.85 lakh.")
+    assert _hd("The Bolero Maxx Pik-Up HD 1.7L VXi in Pune at ₹4.85 lakh.")
+
+
+def test_three_wheeler_with_extra_spaces_is_not_a_number_word() -> None:
+    assert not _bad("Tata Ace Gold at ₹4.85 lakh.", "The Mahindra Jeeto three  wheeler at ₹3 lakh.")

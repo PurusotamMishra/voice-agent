@@ -73,7 +73,7 @@ Fill this in as decisions are made; it goes into the README verbatim.
   - Purpose → ranking boosts (e.g. city delivery → lower payload/GVW, CNG/EV, smaller body; long haul → diesel, higher payload). The matched boost is spoken as a reason.
   - *Rejected:* purpose → inferred hard filters. An inferred constraint is not a stated one; it would create avoidable zero-results and breaks "only stated constraints are walls".
 - **B5 — Postgres in Docker.** DECIDED
-  - *Why over SQLite:* production-like, a natural fit with the Docker preference, and it unlocks **`pg_trgm`** (fuzzy matching for "S" → "Ace" against the alias table) and optionally **`pgvector`** (semantic alias/RAG lookup) inside the same store. No extra search engine needed.
+  - *Why over SQLite:* production-like, a natural fit with the Docker preference, and it unlocks **`pg_trgm`** (fuzzy matching of near-misses like "Aace" → "Ace" against the alias table) and optionally **`pgvector`** (semantic alias/RAG lookup) inside the same store. No extra search engine needed.
   - *Rejected:* SQLite (no trigram/vector without extensions; weaker scale story). Meilisearch/Typesense (splits filtering and ranking across an engine and code; one more container).
   - *Cost:* one more container + startup ordering (healthcheck) + seeding on boot. Must still meet the ≤10-min README target.
 - **B3 / B6 —** canonical vocabularies are defined in code (enums) and mirrored in the alias table; generation is deterministic (fixed seed, checked-in CSV output) so eval expectations stay stable. DECIDED (follows from B1/B2)
@@ -131,12 +131,12 @@ Fill this in as decisions are made; it goes into the README verbatim.
     3. **Pure text-to-SQL** ✗ rejected. The LLM can silently drop or loosen a constraint ("under 5 lakh" → no price filter), which is the cap-at-40 failure mode; also needs read-only DB roles and statement sandboxing.
   - *Where text-to-SQL would win:* many tables and open-ended analytical questions ("average price of diesel pickups in Pune by year"). Not our problem shape: one table, five slots.
 - **D2 — Retrieval is used for: value normalisation, schema retrieval, follow-up grounding.** DECIDED
-  - **Value normalisation (primary RAG job):** raw mention → canonical value via the alias table, using exact match → `pg_trgm` similarity → (optional) `pgvector` embedding similarity, with a confidence score. Low confidence → clarify (D6). Answers Q&A #1 ("Ace" heard as "S").
+  - **Value normalisation (primary RAG job):** raw mention → canonical value via the alias table, using exact match → `pg_trgm` similarity → (optional) `pgvector` embedding similarity, with a confidence score. Low confidence → clarify (D6). Answers Q&A #1 in part: a near-miss such as "Aace" scores in the confirm band and gets "Did you mean Tata Ace?". A single-letter mishear ("S" for "Ace") has trigram similarity 0 with "ace", so it is reported as not found and the user is asked to repeat. That is a known limit, not something `pg_trgm` fixes.
   - **Schema retrieval:** column descriptions + allowed values for the slot schema are retrieved/injected into the extraction prompt from one source (the enums), so prompt and validator never drift. Low leverage with one table; kept small.
   - **Follow-up grounding:** fetch the referenced listing **by ID** (not vector search) and answer only from its fields.
   - *Not chosen:* few-shot retrieval (static few-shots are enough at this size; revisit if Hinglish eval fails).
 - **D3 — Hybrid extractor.** DECIDED
-  - Deterministic parsers for money/numbers/units ("5 lakh", "4.5L", "paanch lakh", "50 hazaar km", "1 ton") **override** LLM numeric output.
+  - Deterministic parsers for money/numbers/units ("5 lakh", "4.5L", "paanch lakh", "50 hazaar km", "1 ton") **override** LLM numeric output, per field (see M3).
   - LLM (function calling) handles intent, body type, fuel, city, purpose, corrections, references.
   - Normaliser (D2) maps every categorical value to canonical form; Pydantic rejects anything outside the enums.
   - Bonus: a rules-only mode doubles as the **LLM-outage fallback** and a key-free eval path (I4).
@@ -295,8 +295,8 @@ Vendor limits below were checked on 2026-10-19 via third-party sources and **mus
   1. executed filters == expected (exact dict compare, after canonicalisation);
   2. multi-turn: only the expected slot changed / the follow-up resolved to the expected listing ID;
   3. the validator passed on the first generation (no regenerate, no template fallback).
-  - Constraint safety (no returned record breaks a hard filter) is **not** a pass criterion but is **reported as a separate metric**. It should be 100% by construction, and showing it is cheap evidence for "filters, not vibes".
-- **J3 — ~25 cases, reported per category.** DECIDED. ~10 English single-turn, ~6 Hinglish, ~3 boundary (exactly ₹5L, "around", ranges), ~3 multi-turn correction, ~2 zero-result (expects the correct relaxation suggestion), ~2 follow-up, ~2 adversarial/misheard ("S" for "Ace" → expects a confirmation prompt). Cases live in `eval/cases.yaml`.
+  - Constraint safety is **not** a pass criterion but is **reported as a separate metric**: on turns that declare `expect_filters`, every shown result is checked against the *user's stated constraints* (the case's `expect_filters`), not against the pipeline's own filters, so a dropped or loosened slot shows up. A second count re-checks results against the executed filters; that one is 0 by construction (the search node already runs the same check) and only guards the SQL builder.
+- **J3 — ~25 cases, reported per category.** DECIDED. ~10 English single-turn, ~6 Hinglish, ~3 boundary (exactly ₹5L, "around", ranges), ~3 multi-turn correction, ~2 zero-result (expects the correct relaxation suggestion), ~2 follow-up, ~2 adversarial/misheard (a near-miss like "Tata Aace" → expects a confirmation prompt; a single-letter mishear like "S" cannot be matched by trigrams and is a known limit, D2). Cases live in `eval/cases.yaml`.
 - **J4 — Latency: UI stage table + JSONL log + summary script.** DECIDED
   - Timestamps: `t_speech_end` (browser) → `stt_done` → `nlu_done` → `search_done` → `first_sentence_validated` → `tts_first_byte` → `t_first_audio` (browser). Browser timestamps are posted back so the full speech-end → first-audio number is real, not estimated.
   - `scripts/latency_report.py` prints p50/p95 per stage for the slides.
@@ -346,3 +346,24 @@ One item already answered because it affects instrumentation:
 | L4 | Scale answer at 100k conv/month: first bottleneck, in order (vendor rate limits → serial LLM calls → session state → …), with ₹ numbers. | Rubric names this explicitly. | OPEN |
 | L5 | ₹-per-conversation estimate for our stack. | Tech-lead Q&A; also a stretch goal. | OPEN |
 | L6 | Prepared answers for the 4 published Q&A questions + noisy audio / vendor outage / 200 concurrent sessions. | They've told us what they'll ask. | OPEN |
+
+## M. Implementation decisions (taken while building the text loop)
+
+- **M1 — The validator binds every number to its unit.** DECIDED. A number in a sentence is read together with the word after it ("4.85 lakh", "48,000 km", "1 owner") and must match a (value, unit) pair of that sentence's record. Numbers from the title (variant "HD 1.7L VXi", "407 Gold", "Pro 2049") license the bare number only, never "1.7 lakh"; the exact model/variant name is skipped by the number check.
+  - *Rejected:* a bag of allowed numbers without units. "₹48,000" would pass because 48,000 is the km value, and "4.85 lakh km" would pass because 4.85 is the price.
+  - *Why:* a cheap, code-level way to close unit-swap hallucinations without spelling every number out.
+- **M2 — Entity check covers aliases and model families.** DECIDED. The validator scans each sentence for canonical makes/models *and* alias-table surfaces ("Leyland", "AL", "Suzuki", "Benz"); a model name matches the record exactly or as a family prefix ("Ace" for "Ace Gold"). City and fuel words must also be the record's.
+  - *Rejected:* canonical names only. "Suzuki Ace Gold" or "the Benz" would slip through.
+  - *Why:* the alias table already exists (D2), so the same vocabulary drives both understanding and validation.
+- **M3 — Per-field number override.** DECIDED. The parser wins on the fields it found. For a field it missed, the LLM's value is kept unless it equals a number the parser read this turn (the LLM mis-assigned that number, e.g. "80000 km" also returned as `budget_max=80000`). Budget bounds are one group: if the parser found any bound, the LLM's budget is ignored. Only stated bounds are written: a max also clears `budget_target`, a min leaves the max alone, a range or "around X" replaces all three. A km/payload phrase whose direction contradicts the slot ("over 2 lakh km") is dropped, never inverted, and recorded in `NumericSlots.dropped` so the LLM's value for that field cannot re-fill it. A consumed year/km/payload span ends the direction context of the next number, so in "under 50000 km and 1 ton" the "under" binds to the km only.
+  - *Rejected:* "parser found any number → drop every LLM number" (the first version). "under 5 lakh, pachaas hazaar se kam chala ho" lost the km wall. Also rejected: always writing all three budget keys, which made "at least 3 lakh" wipe an earlier "under 5 lakh".
+  - *Why:* a stated constraint is a wall (hard rule 2); losing one silently is the worst failure.
+- **M4 — LLM: Groq `openai/gpt-oss-120b`.** DECIDED (fills in I1). The planned `llama-3.3-70b-versatile` is retired on Groq (404). A `TurnIntent` benchmark on a Hinglish turn: gpt-oss-120b ~1.3 s ok, gpt-oss-20b ~1.2 s ok, qwen3.8-27b ~0.7 s ok. Gemini `gemini-2.5-flash-lite` stays the configured fallback (`FailoverLLM`).
+  - *Rejected (for now):* qwen3.8-27b as default. Faster, but chosen as the latency-mitigation candidate rather than the eval default; cost if wrong is ~600 ms per LLM call.
+  - *Why / cost:* quality first for the eval. The free tier allows **8,000 tokens/min per model**; at ~2.5k tokens per turn that is ~3 turns/min, so it is the first bottleneck (it explains the 7–20 s waits in eval latency) and the first line of the L4 scale answer. Mitigations: extractor and composer on different models (separate token buckets), low reasoning effort, failover on 429 instead of waiting.
+- **M5 — `TurnRunner` is the error boundary.** DECIDED. `TurnRunner.run` catches any exception from the graph, logs it, and returns a templated error turn (`route="error"`, `fallback_used=["error"]`) built from the latest checkpoint; the session continues. The eval counts an error turn as a failure.
+  - *Rejected:* letting exceptions reach the CLI/API (one bad turn ends the session), or try/except in every node (business logic buried in error handling).
+  - *Why:* one seam, one place to reason about failure; hard rule 7 (no silent failure) still holds through the log and `fallback_used`.
+- **M6 — Follow-ups are answered by template.** DECIDED (narrows F5). The referenced listing is fetched by ID and `templates.follow_up` fills one sentence from its formatted fact item; no LLM call.
+  - *Rejected:* LLM phrasing + validator for follow-ups. A second LLM call per turn for a one-fact answer, with hallucination risk to manage.
+  - *Why:* zero hallucination risk, lower latency and quota use (Assumption 9). Cost: follow-up answers are English-only and less varied in phrasing.

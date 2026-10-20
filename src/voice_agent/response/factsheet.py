@@ -95,8 +95,18 @@ class FactItem(BaseModel):
     reasons: list[str]
 
     def allowed_numbers(self) -> set[tuple[str, str]]:
-        fields = [self.title, self.price, self.km, self.payload, self.gvw, self.year, self.owners]
-        return set(numbers_with_units(" ".join([*fields, *self.reasons])))
+        fields = [self.price, self.km, self.payload, self.gvw, self.year, self.owners]
+        allowed = set(numbers_with_units(" ".join([*fields, *self.reasons])))
+        # Title numbers are model/variant names ("HD 1.7L VXi", "407 Gold"): they license the
+        # bare number only, never "1.7 lakh" or "407 km".
+        return allowed | {(value, "") for value, _ in numbers_with_units(self.title)}
+
+    def name_phrases(self) -> list[str]:
+        """Model+variant and variant parts of the title that contain digits, longest first.
+        Spoken verbatim they are a name, not a numeric claim ("HD 1.7L" is not 1.7 lakh)."""
+        model_variant = self.title.split(f" {self.make} ", 1)[-1]
+        variant = model_variant.removeprefix(self.model).strip()
+        return [p for p in (model_variant, variant) if any(c.isdigit() for c in p)]
 
 
 class FactSheet(BaseModel):

@@ -15,56 +15,52 @@ If code and this document disagree, fix one of them in the same change.
  │                           │                    │                 ▼                        │◄─►│ city_neighbors│
  │ Panels: transcript, slots,│ ◄──────────────────┤ [4] Search+Rank (or Relax probe)         │   │ checkpoints  │
  │ SQL, top-3 + scores,      │  NDJSON event      │                 │                        │   │ (LangGraph)  │
- │ validator, latency        │  stream            │ [5] Compose ─► Validate ─► TTS (per sent.)│   │ turn_log     │
+ │ validator, latency        │  stream            │ [5] Compose ─► Validate ─► TTS (per sent.)│   │ (turn_log P2)│
  │ Audio queue player        │                    │                                          │   └──────────────┘
  └───────────────────────────┘                    │ [7] telemetry: timings, usage, turn log   │
                                                   └──────────────────────────────────────────┘
  eval/ ── runs cases through the same graph (text in, TTS off) ──► pass rate per category
 ```
 
-Containers (`docker-compose.yml`): `ui` (nginx serving the built React app, proxies `/api` → `app`), `app` (FastAPI, uvicorn), `db` (Postgres 16 with `pg_trgm`; `pgvector` optional).
+Status: the text loop (understand → state → search/rank/relax → respond) is built and driven by `cli.py` and `eval/run_eval.py`. The browser UI, FastAPI app, STT and TTS are **Plan 2**. Today `docker-compose.yml` runs only `db` (Postgres 16 with `pg_trgm`, host port 5433); Plan 2 adds `ui` (nginx serving the React app, proxies `/api` → `app`) and `app` (FastAPI, uvicorn).
 
 ## 2. The seven components → code
 
 | # | Component (brief §2) | Package / path | Hides | Swap target |
 |---|---|---|---|---|
-| 1 | Voice interface | `ui/src/` (`Recorder`, `AudioQueue`, panels); server side `src/voice_agent/api/` | MediaRecorder, streaming fetch, playback | Twilio/WebRTC client |
-| 2 | STT | `src/voice_agent/stt/` (Protocol) + `providers/groq_stt.py`, `providers/sarvam_stt.py` | Vendor API, audio format | Any `SpeechToText` impl |
-| 3 | Understanding | `src/voice_agent/understanding/` — `numbers.py` (money/units parser), `extractor.py` (LLM tool call), `normalizer.py` (alias + pg_trgm), `schema.py` | Prompting, LLM vendor, alias fuzziness | Fine-tuned NLU / different LLM |
-| 4 | Catalog + search | `src/voice_agent/catalog/` — `filters.py` (slots → SQL), `search.py`, `ranker.py`, `relax.py` | SQL, ranking weights | Elastic/OpenSearch, learned ranker |
-| 5 | Response + TTS | `src/voice_agent/response/` — `factsheet.py`, `composer.py`, `templates.py`, `validator.py`; `src/voice_agent/tts/` + `providers/elevenlabs_tts.py` | LLM phrasing, number formatting, TTS vendor | Any `TextToSpeech` impl |
-| 6 | Conversation state | `src/voice_agent/state/` — `models.py`, `reducer.py` (slot merge/correction), `references.py` | Merge rules, reference resolution | Redis-backed store |
-| 7 | Eval + latency | `eval/` (`cases.yaml`, `run_eval.py`, `audio/`, `results/`); `src/voice_agent/telemetry/`; `scripts/latency_report.py`, `scripts/cost_report.py` | — | — |
+| 1 | Voice interface | **Plan 2**: `ui/src/` (recorder, audio queue, panels) + `src/voice_agent/api/`. Today: `src/voice_agent/cli.py` (text chat) | MediaRecorder, streaming fetch, playback | Twilio/WebRTC client |
+| 2 | STT | **Plan 2** (a `SpeechToText` Protocol + Groq/Sarvam providers, called outside the graph) | Vendor API, audio format | Any STT impl |
+| 3 | Understanding | `understanding/` — `pipeline.py` (`understand()`: LLM + number override + normalisation), `numbers.py` (money/units parser), `extractor.py` (LLM structured call), `rules.py` (LLM-outage fallback), `schema.py`. Normaliser: `providers/postgres.py` `PgNormalizer` (alias + `pg_trgm`) | Prompting, LLM vendor, alias fuzziness | Fine-tuned NLU / different LLM |
+| 4 | Catalog + search | `catalog/` — `filters.py` (Filters → SQL, plus the `constraint_violations` re-check), `ranker.py`, `relax.py`. Search: `providers/postgres.py` `PgCatalog` | SQL, ranking weights | Elastic/OpenSearch, learned ranker |
+| 5 | Response (+ TTS) | `response/` — `factsheet.py`, `formatting.py`, `composer.py`, `validator.py`, `templates.py`, `schema.py`. TTS is **Plan 2** | LLM phrasing, number formatting, TTS vendor | Any TTS impl |
+| 6 | Conversation state | `state/` — `models.py` (`Memory`, `Route`), `reducer.py` (merge / one-slot correction / confirm), `references.py`; persisted by the LangGraph Postgres checkpointer | Merge rules, reference resolution | Redis-backed store |
+| 7 | Eval + latency | `eval/` (`cases.yaml`, `run_eval.py`, `results/`); `telemetry/` (`timing.py`, `turnlog.py`). Audio eval and latency/cost scripts are **Plan 2** | — | — |
 
-Glue: `src/voice_agent/graph/` (LangGraph `StateGraph` wiring only — no business logic).
+Glue: `graph/` — `build.py` (LangGraph `StateGraph` wiring only), `state.py` (`ConversationState` + checkpoint serde allowlist), `runner.py` (`TurnRunner`: one call = one turn, with an error boundary), `runtime.py` (wires real providers). LLM providers: `providers/llm.py` (`LangChainLLM`, `FailoverLLM`, `make_llm`).
 
 ## 3. Repository layout
 
 ```
 voice-agent/
 ├── CLAUDE.md                 # agent guide (start here)
-├── README.md                 # run in ≤10 min
 ├── CITATIONS.md
-├── docker-compose.yml
-├── Dockerfile                # app image (uv sync --frozen)
-├── .env.example
+├── docker-compose.yml        # db only today; ui + app in Plan 2
 ├── pyproject.toml / uv.lock
+├── config/ranking.yaml       # ranker weights (E2)
 ├── docs/                     # decisions, architecture, standards, definition-of-done
-├── data/                     # models.csv, listings.csv, aliases.csv, city_neighbors.csv, README.md
-├── scripts/                  # generate_catalog.py, latency_report.py, cost_report.py
+├── data/                     # models.csv, listings.csv, aliases.csv, city_neighbors.csv
 ├── src/voice_agent/
-│   ├── api/                  # FastAPI app, routes, NDJSON event stream
-│   ├── config.py             # pydantic-settings; provider selection via env
-│   ├── domain/               # enums + shared Pydantic models (Slots, Filters, Listing, ScoredListing…)
-│   ├── stt/  understanding/  catalog/  response/  tts/  state/   # components 2–6
-│   ├── graph/                # LangGraph nodes + edges
-│   ├── providers/            # ONLY place vendor SDKs/HTTP APIs are imported
-│   ├── telemetry/            # timers, usage counters, JSON turn logger
+│   ├── config.py  cli.py  aio.py
+│   ├── domain/               # enums, shared Pydantic models, Protocols (ports.py)
+│   ├── understanding/  catalog/  response/  state/   # components 3–6
+│   ├── graph/                # LangGraph wiring, state, TurnRunner, runtime
+│   ├── providers/            # ONLY place for vendor SDKs, LangChain chat models and DB queries
+│   ├── telemetry/            # timer, JSONL turn log
 │   └── db/                   # schema.sql, seed.py (loads data/*.csv on first boot)
-├── tests/unit/               # mirrors src/ layout; no network
-├── eval/
-└── ui/                       # Vite + React + TS, Dockerfile, nginx.conf
+├── tests/unit/  tests/db/    # unit: no network; db: @pytest.mark.db
+└── eval/                     # cases.yaml, run_eval.py, results/
 ```
+Plan 2 adds `api/`, `stt/`, `tts/`, `ui/`, `scripts/` (latency/cost reports), a `Dockerfile` and `README.md`.
 
 ## 4. Domain model (`src/voice_agent/domain/`)
 
@@ -74,7 +70,7 @@ All money is **integer INR**. All weights in **kg**. Never floats for money.
 class BodyType(StrEnum):  three_wheeler, mini_truck, pickup, cargo_van, lcv, icv, tipper
 class Fuel(StrEnum):      diesel, petrol, cng, electric
 class City(StrEnum):      mumbai, delhi, bengaluru, pune, hyderabad, chennai, ahmedabad, jaipur, lucknow, kolkata
-class Purpose(StrEnum):   city_delivery, long_haul, construction, agriculture, general
+class Purpose(StrEnum):   city_delivery, long_haul, construction, agriculture
 
 class Slots(BaseModel):            # what the buyer has told us (inspectable every turn)
     budget_max: int | None         # hard   (D5)
@@ -95,115 +91,88 @@ class Listing(BaseModel):          # one row of listings (see data/README.md for
 class ScoredListing(BaseModel):    # listing + score + contributions: dict[str, float] (E2)
 ```
 
-## 5. Turn pipeline (LangGraph, `src/voice_agent/graph/`)
+## 5. Turn pipeline (LangGraph, `src/voice_agent/graph/build.py`)
 
 ```
-                     ┌──────────────┐
- text ─────────────► │ understand   │  numbers.py + extractor (LLM tool call) + normalizer
-                     └──────┬───────┘  → TurnIntent{intent, slot_updates, reference, confidences}
-                            ▼
-                     ┌──────────────┐
-                     │ update_state │  reducer: merge / correct (1-slot diff) / reset / confirm
-                     └──────┬───────┘
-          ┌───────────┬─────┴───────┬──────────────┬───────────────┐
-   needs_confirm   follow_up     search/correct/relax     reset/out_of_domain
-          ▼           ▼               ▼                          ▼
-   ask_confirm   answer_followup   search ──► 0 rows? ──► relax_probe ──┐
-                 (record by ID)       │ ≥1                             │
-                                      ▼                                │
-                                    rank                               │
-          └───────────┴───────────────┴────────────────┬───────────────┘
-                                                       ▼
-                                   compose ─► validate ─► (fail: regenerate once ─► template)
+ text ─► understand ─► update_state ─┬─ route=search ─► search ─┬─ rows ───► rank ──┐
+         (pipeline.py)  (reducer.py) │                          └─ 0 rows ─► relax ─┤
+                                     └─ any other route ────────────────────────────┤
+                                                                                    ▼
+                                                                                 respond ─► END
 ```
 
-> STT and TTS run in the API layer around the graph (Plan 2): `audio → STT → TurnRunner.run(text) → TTS per sentence`. The graph is text-in/text-out, so the eval and CLI exercise exactly the same graph as the voice path.
+- `understand`: `understanding.pipeline.understand()` → `Understanding` (intent, slot updates, low-confidence and unsupported mentions, usage, fallbacks).
+- `update_state`: `state.reducer.apply_understanding()` → new memory, `slot_diff`, `Route` (`search | confirm | follow_up | which_one | reset | out_of_domain | unsupported | need_info`).
+- `search`: `Filters.from_slots` → `Catalog.search`, then `catalog.filters.constraint_violations` re-checks every row (F2.3); a dropped row is logged and recorded as `constraint_drop`.
+- `rank`: `catalog.ranker.rank` → top-3 `ScoredListing` + `last_results`. `relax`: `catalog.relax.propose_relaxation` → `pending_relaxation`.
+- `respond`: a search with results → `response.composer.compose_results` (LLM → validator → regenerate once → template); every other route (zero results, follow-up, confirm, unsupported, reset, …) → `response.templates`.
+- Nodes are thin; **no LLM decides routing** beyond the intent label. Checkpointer: LangGraph Postgres saver, `thread_id = session_id` (G4).
+- `graph/runner.py` `TurnRunner.run(session_id, text) -> TurnResult` is the seam the CLI, the eval and (Plan 2) the API call. An exception inside the graph becomes a templated error turn (`route="error"`, `fallback_used=["error"]`) and the session continues.
 
-- Nodes are thin: each calls one component function and writes its result into graph state.
-- Conditional edges implement routing; **no LLM decides routing** beyond the intent label from `understand`.
-- Checkpointer: LangGraph Postgres checkpointer, `thread_id = session_id` (G4).
+> STT and TTS sit outside the graph (Plan 2): `audio → STT → TurnRunner.run(text) → TTS per sentence`. The graph is text-in/text-out, so the eval and CLI exercise exactly the graph the voice path will use.
 
-### Graph state (`state/models.py`)
+### Graph state (`graph/state.py`)
 
 ```python
-class ConversationState(TypedDict):
-    session_id: str
+class ConversationState(TypedDict, total=False):
+    # memory (persists across turns via the checkpointer)
     turn: int
-    # inputs
-    audio: bytes | None
-    transcript: str | None
-    stt_confidence: float | None
-    # understanding
-    intent: Intent | None                 # search | correct | follow_up | relax | reset | out_of_domain
-    slot_updates: dict[str, Any]
-    reference: Reference | None
-    # memory (persists across turns)
     slots: Slots
-    slot_diff: dict[str, tuple[Any, Any]] # this turn only: key -> (old, new)
     pending_confirmation: PendingConfirmation | None   # D6
     pending_relaxation: Relaxation | None              # E3
-    last_results: list[str]               # ordered listing_ids
-    focused_listing_id: str | None        # G3
-    # search + response (this turn)
+    last_results: list[ResultRef]                      # ordered (listing_id, rank, make, model)
+    focused_listing_id: str | None                     # G3
+    # this turn (reset by TURN_RESET at the start of every turn)
+    text: str
+    understanding: Understanding | None
+    slot_diff: dict[str, tuple[Any, Any]]              # key -> (old, new)
+    route: Route | None
+    filters: Filters | None
     executed_sql: str | None
     sql_params: dict[str, Any]
+    candidates: list[Listing]
     results: list[ScoredListing]
     response: ComposedResponse | None
-    validator_verdict: Verdict | None
-    fallback_used: list[str]              # e.g. ["llm_failover", "template", "client_tts"]
+    verdict: Verdict | None
+    fallback_used: list[str]   # llm_failover, rules_extractor, regenerated, template, constraint_drop, error
     timings_ms: dict[str, float]
-    usage: dict[str, float]               # tokens, audio_s, tts_chars per provider (L5)
+    usage: list[Usage]         # LLM tokens per call and provider (L5)
 ```
+Every Pydantic/Enum type reachable from these annotations is on the checkpoint serde allowlist (`STATE_TYPES`); a unit test enforces it.
 
-## 6. Component contracts (Protocols)
+## 6. Component contracts (Protocols, `domain/ports.py`)
 
 ```python
-class SpeechToText(Protocol):
-    async def transcribe(self, audio: bytes, mime: str, lang_hint: str | None) -> Transcript: ...
-    # Transcript(text: str, confidence: float | None, provider: str, audio_seconds: float)
+class LLM(Protocol):            # extractor + composer; Groq primary, Gemini fallback via FailoverLLM (I1)
+    name: str
+    async def structured(self, system: str, user: str, schema: type[T]) -> LLMResult[T]: ...
+    # LLMResult(value: T, usage: Usage); raises ProviderError after the provider's retries
 
-class LLM(Protocol):                       # used by extractor + composer; Groq primary, Gemini alt (I1)
-    async def call_tool(self, system: str, user: str, tool: type[BaseModel]) -> tuple[BaseModel, Usage]: ...
+class Normalizer(Protocol):     # PgNormalizer
+    async def normalize(self, kind: AliasKind, raw: str) -> Match: ...  # Match(raw, canonical, score, method)
 
-class SlotExtractor(Protocol):
-    async def extract(self, text: str, state: ConversationState) -> TurnIntent: ...
-
-class Normalizer(Protocol):
-    async def normalize(self, kind: AliasKind, raw: str) -> Match   # Match(canonical, score, method)
-
-class CatalogSearch(Protocol):
-    async def search(self, filters: Filters, limit: int = 50) -> SearchResult  # rows + sql + params
-    async def count(self, filters: Filters) -> int
-
-class Ranker(Protocol):
-    def rank(self, rows: list[Listing], slots: Slots) -> list[ScoredListing]
-
-class ResponseComposer(Protocol):
-    async def compose(self, facts: FactSheet, kind: ResponseKind) -> ComposedResponse
-
-class Validator(Protocol):
-    def check(self, response: ComposedResponse, facts: FactSheet, filters: Filters) -> Verdict
-
-class TextToSpeech(Protocol):
-    def stream(self, text: str) -> AsyncIterator[bytes]   # raises ProviderError → client TTS fallback
+class Catalog(Protocol):        # PgCatalog
+    async def search(self, filters: Filters, limit: int = 500) -> SearchResult: ...  # rows + sql + params
+    async def count(self, filters: Filters) -> int: ...
+    async def get(self, listing_id: str) -> Listing | None: ...
 ```
 
-Implementations are selected in `config.py` from env (`LLM_PROVIDER`, `LLM_FALLBACK_PROVIDER`, `STT_PROVIDER`, `TTS_PROVIDER`).
+Ranking, composing and validating are plain functions, not Protocols (`rank`, `compose_results`, `validate`). Plan 2 adds `SpeechToText` and `TextToSpeech` Protocols. Providers are chosen in `config.py` from env (`LLM_PROVIDER`, `LLM_FALLBACK_PROVIDER`, `GROQ_MODEL`, `GEMINI_MODEL`); unit tests use the fakes in `tests/fakes.py`.
 
-## 7. Understanding details (D1–D7)
+## 7. Understanding details (D1–D7, `understanding/pipeline.py`)
 
-1. `numbers.py` (deterministic) extracts money/units first: "5 lakh", "4.5L", "paanch lakh", "50 hazaar km", "1 ton", "2018 ke baad". Its numeric results **override** the LLM's.
-2. `extractor.py` makes **one** LLM tool call with schema `TurnIntent`. The prompt includes the allowed enum values (generated from `domain` enums — single source), the current slots, the last results (ID + make/model/ordinal), and the pending confirmation/relaxation if any.
-3. `normalizer.py` maps every categorical value: exact alias → `pg_trgm similarity()` ≥ `TRGM_ACCEPT` (0.6) → else **low confidence**. Below the accept threshold but ≥ `TRGM_CONFIRM` (0.3) → `pending_confirmation` ("Did you mean Tata Ace?"). Below that → slot dropped and the user is told what wasn't understood.
-4. Pydantic validates ranges/enums. Invalid values are dropped and logged, never forwarded to SQL.
+1. `extractor.py` makes **one** LLM structured call with schema `TurnIntent`. The prompt lists the allowed enum values (from the `domain` enums), phrase hints from the alias table, the current slots, the last results and the pending question. On `ProviderError` the pipeline falls back to `rules.py` (exact alias matching) and records `rules_extractor`.
+2. `numbers.py` (deterministic) parses money/km/payload/year: "5 lakh", "4.5L", "paanch lakh", "pachaas hazaar km", "1 ton", "2018 ke baad". Number words convert only when a unit follows. A km/payload phrase whose direction contradicts the slot ("over 2 lakh km", "payload under 2 tons") is dropped, never inverted.
+3. Per-field number override (D3): the parser wins on every field it found. For a field it missed, the LLM's value is kept unless it equals a number the parser read this turn. Budget bounds are one group: if the parser found any bound, the LLM's budget is ignored. Only stated bounds are written: a max also clears `budget_target`, a min leaves the max alone, a range or "around X" replaces all three.
+4. City/make/model mentions go through `PgNormalizer`: exact alias → `pg_trgm similarity()`; ≥ `TRGM_ACCEPT` (0.6) accepted, ≥ `TRGM_CONFIRM` (0.3) → `pending_confirmation` ("Did you mean Tata Ace?"), below that → reported as not found.
+5. `state.reducer.sanitize_updates` validates ranges/enums against `Slots`; invalid values are dropped and logged, never forwarded to SQL.
 
 ## 8. Search, ranking, relaxation (E1–E4)
 
-- `filters.py`: `Slots → Filters → (sql, params)`. One `WHERE` clause per non-null hard field, always parameterized (`%(budget_max)s`). The SQL text + params are returned for display/logging.
-- `ranker.py`: `score = Σ wᵢ·fᵢ`, features normalised to [0,1] within the candidate set:
-  `price_headroom` (or `price_closeness` when `budget_target`), `low_km`, `newer_year`, `papers_verified`, `purpose_fit`, `payload_fit`. Weights in `config/ranking.yaml`. `contributions` are kept per result.
-- `relax.py`: on 0 rows, probe in this order and collect counts: budget +20% → neighbour cities → any fuel → adjacent body type → drop make/model. Suggest the smallest change with ≥1 result. Stored as `pending_relaxation`; applied only on a `relax` intent.
-- Defense in depth (F2.3): after SQL, `validator.assert_constraints(rows, filters)` re-checks every row in Python.
+- `catalog/filters.py`: `Filters → (sql, params)`. One `WHERE` clause per non-null hard field, always parameterized (`%(budget_max)s`). `PgCatalog` executes it and returns the SQL + params for display/logging.
+- `catalog/ranker.py`: `score = Σ wᵢ·fᵢ`, features normalised to [0,1] within the candidate set: `price` (cheaper, or closer to `budget_target` for "around X"), `low_km`, `newer_year`, `papers_verified`, `purpose_fit`. Weights in `config/ranking.yaml`; per-feature `contributions` are kept per result.
+- `catalog/relax.py`: on 0 rows, probe one change at a time with `COUNT(*)`: budget +20% → neighbour cities → any fuel → adjacent body type → drop min_year / max_km / min_payload / model / make / budget_min. The first change with ≥1 row is offered as `pending_relaxation`; it is applied only on a `relax` intent.
+- Defense in depth (F2.3): the `search` node re-checks every row with `catalog.filters.constraint_violations`.
 
 ## 9. Response + anti-hallucination (F1–F5)
 
@@ -219,18 +188,19 @@ class ComposedResponse(BaseModel):
 Per-item sentences are bound to a `listing_id`, so the validator checks each sentence **only against its own record**. This closes the cross-attribution gap noted in F3.
 
 **Validator** (`validator.py`), pure Python:
-1. `items[*].listing_id` == top-k IDs, in order; no other make/model mentioned (alias-table scan).
-2. Every number token in each sentence (digits + spoken forms via `numbers.py`) ∈ that record's fact values.
+1. `items[*].listing_id` == top-k IDs, in order; each sentence names only its own make/model (canonical names, aliases, model-family prefix), city and fuel.
+2. Every number in each sentence is read with its unit (`numbers_with_units`) and must match a (value, unit) pair of that record's facts; numbers from the title license the bare number only. Spelled-out number words and stray scale words are rejected.
 3. `intro`/`closing` contain no numbers and no vehicle entities.
-4. Constraint re-check of the records (F2.3).
+
+(The constraint re-check of the records, F2.3, runs earlier, in the `search` node.)
 
 Failure → regenerate once with the violations listed in the prompt → still failing → `templates.py` (deterministic). `fallback_used` records it.
 
-**Follow-ups**: fact sheet = the single referenced listing (fetched by ID). Asked field not in the listing → templated "That isn't in the listing."
+**Follow-ups** are answered without the LLM: the referenced listing is fetched by ID and `templates.follow_up` fills one sentence from its fact item (formatted values only). A field we don't hold (`other`) → templated "That detail isn't in the listing."
 
 **Known limits** (said out loud in the presentation): see decisions F3.
 
-## 10. API (`src/voice_agent/api/`)
+## 10. API (`src/voice_agent/api/`) — Plan 2
 
 | Method | Path | Body | Response |
 |---|---|---|---|
@@ -247,11 +217,11 @@ The browser plays `sentence` audio in a queue as each one arrives and stamps `t_
 
 ## 11. Latency instrumentation (J4)
 
-Server stamps (monotonic): `request_received, stt_done, nlu_done, state_done, search_done, compose_done, validate_done, tts_first_byte, done`. Browser stamps: `t_speech_end` (button release), `t_first_audio`. Headline metric = `t_first_audio − t_speech_end`. Everything goes into the JSONL turn log (`logs/turns.jsonl`) and the UI latency panel.
+Server stamps (monotonic): `request_received, stt_done, nlu_done, state_done, search_done, compose_done, validate_done, tts_first_byte, done`. Browser stamps: `t_speech_end` (button release), `t_first_audio`. Headline metric = `t_first_audio − t_speech_end`. Today the graph records `nlu`, `search`, `rank`/`relax`, `compose` and `total` in `timings_ms` (JSONL turn log + eval p50/p95); the STT/TTS/browser stamps and the UI latency panel are Plan 2.
 
 ## 12. Data store (`src/voice_agent/db/schema.sql`)
 
-Tables: `listings` (columns per `data/README.md`, indexes on `(body_type, fuel, city, price_inr)`), `aliases(alias, canonical, kind)` with a `gin (alias gin_trgm_ops)` index, `city_neighbors`, `turn_log` (JSONB per turn), plus LangGraph checkpoint tables (created by the checkpointer's `setup()`). `seed.py` loads the CSVs if `listings` is empty.
+Tables: `listings` (index on `(body_type, fuel, city, price_inr)`), `aliases(alias, canonical, kind)` with a `gin (alias gin_trgm_ops)` index, `city_neighbors`, plus the LangGraph checkpoint tables (created by the saver's `setup()`). `seed.py` loads the CSVs if `listings` is empty. The turn log is `logs/turns.jsonl` (one JSON `TurnResult` per turn); the `turn_log` table exists in the schema but is reserved for Plan 2 and not written yet.
 
 ## 13. Failure modes & fallbacks (H5, I2)
 

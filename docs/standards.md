@@ -34,7 +34,7 @@ Applies to every change, human or agent. Short on purpose: if a rule isn't here,
 ## 4. Logging & telemetry
 
 - stdlib `logging` with a JSON formatter (`telemetry/logging.py`). No `print` outside scripts.
-- One structured **turn record** per turn (see decisions K4) → `logs/turns.jsonl` + `turn_log` table.
+- One structured **turn record** per turn (see decisions K4) → `logs/turns.jsonl` (the `turn_log` table is reserved for Plan 2).
 - Time stages with the `telemetry.timer("stage_name")` context manager; never hand-roll `time.time()` pairs.
 - Never log API keys or raw audio bytes. Transcripts are fine (demo data).
 

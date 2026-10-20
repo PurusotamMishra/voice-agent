@@ -117,3 +117,13 @@ def test_search_with_invalid_updates_does_not_raise() -> None:
     mem, diff, _ = apply_understanding(BASE, u(updates={"budget_max": 5, "city": "pune"}))
     assert mem.slots.city is City.PUNE and mem.slots.budget_max is None
     assert diff == {"city": ("mumbai", "pune")}
+
+
+def test_budget_bounds_from_two_turns_are_both_kept() -> None:
+    # Turn 1 "under 5 lakh" writes only the max; turn 2 "at least 3 lakh" only the min.
+    mem, _, _ = apply_understanding(
+        Memory(), u(updates={"budget_max": 500_000, "budget_target": None})
+    )
+    mem2, diff, _ = apply_understanding(mem, u(updates={"budget_min": 300_000}))
+    assert (mem2.slots.budget_min, mem2.slots.budget_max) == (300_000, 500_000)
+    assert diff == {"budget_min": (None, 300_000)}
