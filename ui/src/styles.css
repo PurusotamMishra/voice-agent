@@ -1,0 +1,21 @@
+:root { font-family: system-ui, sans-serif; color: #1d232a; background: #f4f5f7; }
+body { margin: 0; }
+.app { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ptt { padding: 14px 22px; font-size: 16px; border-radius: 999px; border: 0; background: #1f6feb; color: white; cursor: pointer; user-select: none; }
+.ptt.recording { background: #d1242f; }
+.ptt:disabled { background: #8c959f; }
+input[type="text"] { flex: 1; min-width: 200px; padding: 10px; font-size: 15px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; }
+.panel { background: white; border-radius: 8px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.08); overflow-x: auto; }
+.panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: #57606a; margin: 0 0 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+td, th { text-align: left; padding: 3px 6px; border-bottom: 1px solid #eaeef2; vertical-align: top; }
+pre { white-space: pre-wrap; font-size: 12px; margin: 0; }
+.diff { color: #9a6700; font-weight: 600; }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; margin: 2px; background: #fff8c5; }
+.badge.ok { background: #dafbe1; }
+.badge.bad { background: #ffebe9; }
+.turn { margin: 6px 0; }
+.turn .you { color: #57606a; }
+.error { color: #d1242f; }
