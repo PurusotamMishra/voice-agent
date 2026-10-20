@@ -4,15 +4,17 @@
 
 | Stage | p50 ms | p95 ms | n |
 |---|---|---|---|
-| stt | 605 | 644 | 2 |
-| nlu | 703 | 1132 | 8 |
-| search | 4 | 41 | 8 |
-| rank | 0 | 0 | 8 |
-| compose | 1426 | 8731 | 8 |
-| pipeline | 2673 | 9185 | 8 |
-| first_audio_ready | 3431 | 9465 | 8 |
-| tts | 1860 | 2313 | 8 |
-| server_total | 5192 | 10170 | 8 |
+| stt | 1242 | 2358 | 13 |
+| nlu | 815 | 2195 | 15 |
+| search | 3 | 41 | 13 |
+| rank | 0 | 0 | 12 |
+| relax | 2 | 2 | 1 |
+| compose | 834 | 8731 | 15 |
+| pipeline | 1828 | 9185 | 17 |
+| first_audio_ready | 2859 | 9465 | 19 |
+| tts | 1444 | 2313 | 19 |
+| server_total | 3915 | 10170 | 19 |
+| speech_end_to_first_audio | 3282 | 4586 | 7 |
 
 ## tts_mode = whole
 

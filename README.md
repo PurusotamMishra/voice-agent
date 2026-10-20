@@ -98,11 +98,11 @@ Mitigations in place for the slow LLM stage (J5):
 
 Prices come from `config/prices.yaml` (checked 2026-10-20; the ElevenLabs row and the USD to INR rate are unverified).
 
-Measured on 2026-10-20 (`eval/results/latency.md`; 8 sentence-mode and 5 whole-mode turns through the API, Groq free tier):
-- Server total p50/p95: 5.2 s / 10.2 s with sentence TTS, 13.5 s / 24.5 s with whole TTS. The whole-mode turns ran into Groq rate limiting on compose, so compare the TTS gap below, not the totals.
-- **Dominant stage: compose** (one LLM call, p50 1.4 s, p95 8.7 s, rate-limit waits included). STT about 0.6 s, NLU 0.7 s, search under 5 ms.
-- **Mitigation measured:** time from finished reply to first audio ready, per-turn median: **0.37 s with sentence TTS vs 1.13 s with whole TTS**, so sentence streaming wins back about 0.8 s.
-- The browser-measured speech-end to first-audio number needs the mic run in the UI; it is not measured yet.
+Measured on 2026-10-20 (`eval/results/latency.md`; 19 sentence-mode turns, 7 of them from the browser mic test, and 5 whole-mode turns, Groq free tier):
+- **Headline, browser-measured speech end to first audio: p50 3.3 s, p95 4.6 s** (7 mic turns, sentence TTS).
+- Server total p50/p95: 3.9 s / 10.2 s with sentence TTS, 13.5 s / 24.5 s with whole TTS. The whole-mode turns ran into Groq rate limiting on compose, so compare the TTS gap below, not the totals.
+- **Dominant stage: compose** (one LLM call, p50 0.8 s, p95 8.7 s, rate-limit waits included). STT p50 1.2 s (real mic turns are longer than the eval clips), NLU 0.8 s, search under 5 ms.
+- **Mitigation measured:** time from finished reply to first audio ready, per-turn median on the first 8 sentence-mode turns: **0.37 s with sentence TTS vs 1.13 s with whole TTS**, so sentence streaming wins back about 0.8 s.
 - Cost: **₹1.51 per turn** (13 one-turn conversations), about **₹6 for a 4-turn conversation**, so about ₹6 lakh a month at 100k conversations. ElevenLabs TTS is about 95% of it; Groq LLM and STT are under ₹0.07 a turn (`eval/results/cost.md`).
 
 ## 7. Design in one screen
