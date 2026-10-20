@@ -9,6 +9,7 @@ from voice_agent.domain.models import LowConfidence, Unsupported
 from voice_agent.domain.ports import Normalizer, ProviderError, Usage
 from voice_agent.state.reducer import sanitize_updates
 from voice_agent.understanding.extractor import LLMSlotExtractor
+from voice_agent.understanding.language import detect_language
 from voice_agent.understanding.numbers import NumericSlots, parse_numeric
 from voice_agent.understanding.rules import rules_extract
 from voice_agent.understanding.schema import ExtractionContext, TurnIntent, Understanding
@@ -39,6 +40,7 @@ async def understand(
         log.warning("extractor failed, using rules: %s", exc)
         ti = rules_extract(text, alias_map, ctx.pending_question)
         fallbacks.append("rules_extractor")
+    ti = ti.model_copy(update={"language": detect_language(text)})  # N13: code decides
 
     updates = _slot_updates(ti, parse_numeric(text))
     low: list[LowConfidence] = []

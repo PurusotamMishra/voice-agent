@@ -411,3 +411,6 @@ One item already answered because it affects instrumentation:
 - **N12 — Empty TTS audio is a TTS failure.** DECIDED. `_speak` raises `ProviderError` on empty bytes, records `tts_client` and the browser speaks the rest of the turn.
   - *Rejected:* sending an empty `audio_b64`.
   - *Why:* the browser would play silence and the user would hear nothing (hard rule 7: no silent failure).
+- **N13 — Reply language is decided in code, not by the LLM.** DECIDED. `understanding/language.py` marks a turn Hinglish if it contains Devanagari or a Roman-script Hindi grammar word ("mein", "chahiye", "dikhao", "nahi", ...); otherwise English. The pipeline overwrites the LLM's `language` field with it, also on the rules fallback.
+  - *Rejected:* the LLM's own `language` field (with a sharper prompt).
+  - *Why:* in live runs the LLM tagged plain English with "lakh" or an Indian city ("Diesel pickup in Delhi under 8 lakh") as Hinglish and replied in Hinglish. A word list is deterministic, unit-tested and explainable, and the rules fallback previously always said English. Cost if wrong: a Hinglish turn with no listed Hindi word (e.g. "Pune, 5 lakh, Tata Ace") gets an English reply, which a code-switching buyer still understands (N1).

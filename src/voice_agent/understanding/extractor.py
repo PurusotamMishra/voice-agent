@@ -26,7 +26,7 @@ Fill the TurnIntent schema. Rules:
 - follow_up: set reference (ordinal 1-3, -1 for the last one; or make/model; or pronoun=true for
   it / uska / that one) and follow_up_field.
 - confirmation: "yes" or "no", set only when Context.pending_question is non-null and answered.
-- language: "hi-en" if the user speaks Hindi or Hinglish, otherwise "en"."""
+- language: leave as "en"; code sets it from the words used."""
 
 
 def build_system_prompt(alias_map: Mapping[AliasKind, Mapping[str, str]]) -> str:

@@ -1,5 +1,5 @@
 from tests.fakes import FakeLLM, FakeNormalizer
-from voice_agent.domain.enums import AliasKind, BodyType, Intent
+from voice_agent.domain.enums import AliasKind, BodyType, Intent, Language
 from voice_agent.domain.models import Slots
 from voice_agent.domain.ports import ProviderError
 from voice_agent.understanding.extractor import LLMSlotExtractor
@@ -37,6 +37,14 @@ async def test_parser_overrides_llm_budget_and_city_is_normalised() -> None:
         "city": "pune",
     }
     assert "mini_truck" in llm.calls[0][0]  # enum values are in the system prompt
+
+
+async def test_code_decides_reply_language_not_the_llm() -> None:
+    llm = FakeLLM([TurnIntent(intent=Intent.SEARCH, language=Language.HINGLISH)])
+    u = await understand(
+        "Mini truck in Pune under 5 lakh", CTX, LLMSlotExtractor(llm, ALIASES), NORM, ALIASES
+    )
+    assert u.turn_intent.language == Language.EN
 
 
 async def test_low_confidence_and_unsupported() -> None:

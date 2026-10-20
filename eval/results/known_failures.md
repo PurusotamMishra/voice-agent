@@ -25,6 +25,9 @@ Slot extraction is one LLM call (Groq, openai/gpt-oss-120b), so a case that pass
 ## Groq free-tier daily cap
 Besides 8,000 tokens/min, the free tier caps each model at **200,000 tokens per day**. One full 32-case eval uses roughly 100–150k tokens, so a day of development plus one eval can exhaust `openai/gpt-oss-120b`: the extractor then falls back to rules and the composer to templates (the fallback path scored 18/32 when this happened on 2026-10-20). Splitting extraction and composition across models (`GROQ_COMPOSE_MODEL`) gives each its own daily bucket.
 
+## Fixed: English turns answered in Hinglish (decisions N13)
+On 2026-10-20 the LLM tagged plain English turns that contained "lakh" or an Indian city as Hinglish, so the composer replied in Hinglish (seen in `logs/turns.jsonl` on gpt-oss-20b; one earlier Docker run, model not logged, did the same on "Tata Ace in Pune"). The language is now set in code from Hindi grammar words or Devanagari. All 45 eval utterances classify correctly (unit-tested in `tests/unit/understanding/test_language.py`).
+
 ## Hinglish users hear English templates (decisions N1)
 The composer replies in the detected language, but the templates are English. A Hinglish buyer hears English on zero-result offers, confirmations ("Did you mean ...?"), follow-up answers, the STT-failure message and error turns. The Hinglish eval cases check filters and validator results, not the reply language, so they do not catch this.
 
