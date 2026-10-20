@@ -159,3 +159,17 @@ def test_no_with_a_new_value_searches_with_it() -> None:
 def test_yes_labelled_search_accepts_relaxation() -> None:
     _, diff, route = apply_understanding(RELAX_MEM, u(Intent.SEARCH, confirmation="yes"))
     assert route.kind == "search" and diff == {"city": ("mumbai", "pune")}
+
+
+def test_no_to_confirmation_keeps_the_other_updates() -> None:
+    mem, _, _ = apply_understanding(
+        Memory(),
+        u(
+            updates={"city": City.PUNE},
+            low_confidence=[LowConfidence(slot="model", raw="aace", candidate="Ace", score=0.5)],
+        ),
+    )
+    mem2, diff, route = apply_understanding(mem, u(confirmation="no"))
+    assert mem2.slots.city is City.PUNE and mem2.slots.model is None
+    assert diff == {"city": (None, "pune")} and route.kind == "search"
+    assert mem2.pending_confirmation is None

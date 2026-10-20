@@ -53,9 +53,9 @@ def apply_understanding(mem: Memory, u: Understanding) -> tuple[Memory, SlotDiff
 
     if mem.pending_confirmation is not None and ti.confirmation is not None:
         pending = mem.pending_confirmation
-        updates = dict(u.updates)
+        updates = {**pending.deferred_updates, **u.updates}  # D6: "no" drops only the unsure slot
         if ti.confirmation == "yes":
-            updates = {**pending.deferred_updates, pending.slot: pending.candidate, **updates}
+            updates = {**pending.deferred_updates, pending.slot: pending.candidate, **u.updates}
         return _search_with(mem, updates)
 
     if mem.pending_relaxation is not None:
