@@ -1,0 +1,28 @@
+# Audio subset (J1). Clips live next to this file. `synthetic: true` marks ElevenLabs stand-ins
+# (scripts/make_eval_audio.py); replace them with real recordings under the same names when you can.
+- file: en-01.wav
+  language: en
+  synthetic: true
+  say: "I need a small truck under 5 lakh in Pune"
+  expect_filters: {budget_max: 500000, body_type: mini_truck, city: pune}
+- file: en-02.wav
+  language: en
+  synthetic: true
+  say: "Show me diesel pickups in Mumbai"
+  expect_filters: {fuel: diesel, body_type: pickup, city: mumbai}
+- file: en-03-noisy.wav
+  language: en
+  synthetic: true
+  noisy: true
+  say: "Any CNG vehicle in Delhi below 4 lakh"
+  expect_filters: {fuel: cng, city: delhi, budget_max: 400000}
+- file: hi-01.wav
+  language: hi-en
+  synthetic: true
+  say: "Pune mein paanch lakh tak ka chhota truck chahiye"
+  expect_filters: {budget_max: 500000, body_type: mini_truck, city: pune}
+- file: hi-02.wav
+  language: hi-en
+  synthetic: true
+  say: "Mumbai mein diesel pickup dikhao"
+  expect_filters: {fuel: diesel, body_type: pickup, city: mumbai}
