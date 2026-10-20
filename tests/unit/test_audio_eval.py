@@ -18,3 +18,13 @@ def test_wer_counts_substitution_and_deletion() -> None:
 
 def test_normalise_strips_punctuation_and_case() -> None:
     assert normalise("Pune, 5 lakh!") == "pune 5 lakh"
+
+
+def test_stt_error_row_keeps_file_and_provider() -> None:
+    row = audio_eval.stt_error_row("en-01.wav", "groq", RuntimeError("boom"))
+    assert row == {
+        "file": "en-01.wav",
+        "provider": "groq",
+        "transcript": "",
+        "status": "STT ERROR: boom",
+    }

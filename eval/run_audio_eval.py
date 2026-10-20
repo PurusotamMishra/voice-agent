@@ -16,7 +16,7 @@ from run_eval import check_turn  # same directory: the script runs as eval/run_a
 
 from voice_agent.aio import run
 from voice_agent.config import Settings, get_settings, key
-from voice_agent.domain.ports import SpeechToText
+from voice_agent.domain.ports import ProviderError, SpeechToText
 from voice_agent.graph.runtime import build_runtime
 from voice_agent.providers.http import open_http_client
 from voice_agent.providers.stt import HINGLISH_PROMPT, GroqSTT, SarvamSTT
@@ -58,6 +58,10 @@ def stts_for(language: str, settings: Settings, client: Any) -> list[SpeechToTex
     return out
 
 
+def stt_error_row(file: str, provider: str, exc: Exception) -> dict[str, Any]:
+    return {"file": file, "provider": provider, "transcript": "", "status": f"STT ERROR: {exc}"}
+
+
 async def run_all(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
     settings = get_settings()
     rows: list[dict[str, Any]] = []
@@ -67,10 +71,19 @@ async def run_all(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if not path.exists():
                 rows.append({"file": case["file"], "provider": "-", "status": "missing clip"})
                 continue
-            for stt in stts_for(case["language"], settings, client):
-                tr = await stt.transcribe(path.read_bytes(), path.name, "audio/wav")
+            stts = stts_for(case["language"], settings, client)
+            if not stts:
+                rows.append({"file": case["file"], "provider": "-", "status": "no STT available"})
+                continue
+            for stt in stts:
+                try:
+                    tr = await stt.transcribe(path.read_bytes(), path.name, "audio/wav")
+                except ProviderError as exc:
+                    rows.append(stt_error_row(case["file"], stt.name, exc))
+                    print(f"{rows[-1]['status'][:60]}  {case['file']:<18} {stt.name}")
+                    continue
                 result = await runner.run(f"audio-{uuid4().hex[:6]}", tr.text)
-                failures = check_turn({"expect_filters": case["expect_filters"]}, result)
+                failures = check_turn({"expect_filters": case.get("expect_filters", {})}, result)
                 rows.append(
                     {
                         "file": case["file"],
@@ -98,12 +111,15 @@ def summarise(rows: list[dict[str, Any]]) -> str:
             f"| {r.get('transcript', '')} | {r['status']} |"
         )
     passed = sum(r["status"] == "PASS" for r in rows)
-    lines += ["", f"**{passed}/{len(rows)} clip×provider runs passed.**"]
+    lines += ["", f"**{passed}/{len(rows)} clip x provider runs passed.**"]
     lines += ["A failure with high WER is an STT miss; low WER plus FAIL is an understanding miss."]
     return "\n".join(lines) + "\n"
 
 
 def main() -> int:
+    if key(get_settings().groq_api_key) is None:
+        print("GROQ_API_KEY is not set", file=sys.stderr)
+        return 2
     cases = yaml.safe_load((AUDIO_DIR / "cases.yaml").read_text(encoding="utf-8"))
     rows = run(run_all(cases))
     text = summarise(rows)
