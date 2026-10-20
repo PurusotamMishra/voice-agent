@@ -57,7 +57,7 @@
   category: english
   turns:
     - say: "Diesel mini truck that has run less than 50,000 km in Chennai"
-      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: chennai}
+      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: pune}
 - id: en-11
   category: english
   turns:
@@ -166,3 +166,43 @@
   turns:
     - say: "I need something for city delivery in Mumbai under 4 lakh"
       expect_filters: {city: mumbai, budget_max: 400000}
+- id: hi-01
+  category: hinglish
+  turns:
+    - say: "Pune mein paanch lakh tak ka chhota truck chahiye"
+      expect_filters: {budget_max: 500000, body_type: mini_truck, city: pune}
+- id: hi-02
+  category: hinglish
+  turns:
+    - say: "Mumbai mein diesel pickup dikhao"
+      expect_filters: {fuel: diesel, body_type: pickup, city: mumbai}
+- id: hi-03
+  category: hinglish
+  turns:
+    - say: "Delhi mein CNG wali gaadi chahiye, chaar lakh se kam"
+      expect_filters: {fuel: cng, city: delhi, budget_max: 400000}
+- id: hi-04
+  category: hinglish
+  turns:
+    - say: "Tata Ace chahiye Pune mein, paanch lakh ke andar"
+      expect_filters: {make: Tata, model: Ace, city: pune, budget_max: 500000}
+- id: hi-05
+  category: hinglish
+  turns:
+    - say: "Pune mein diesel mini truck jo pachaas hazaar km se kam chala ho"
+      expect_filters: {fuel: diesel, body_type: mini_truck, max_km: 50000, city: pune}
+- id: hi-06
+  category: hinglish
+  turns:
+    - say: "Jaipur mein diesel pickup chahiye, chhe lakh tak"
+      expect_filters: {fuel: diesel, body_type: pickup, city: jaipur, budget_max: 600000}
+    - say: "diesel nahi, CNG wala dikhao"
+      expect_changed: [fuel]
+- id: hi-07
+  category: hinglish
+  turns:
+    - say: "Delhi mein diesel pickup dikhao"
+      expect_filters: {fuel: diesel, body_type: pickup, city: delhi}
+    - say: "doosre wale ka payload kitna hai?"
+      expect_route: follow_up
+      expect_followup_rank: 2

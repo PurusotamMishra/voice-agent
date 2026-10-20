@@ -117,3 +117,9 @@ def test_summary_reports_both_safety_lines(run_eval: ModuleType) -> None:
     summary = run_eval.summarise(result)
     assert "Constraint safety (vs stated constraints): 90.0% of 10" in summary
     assert "Re-check (vs executed filters): 0 of 12" in summary
+
+
+def test_select_cases_by_category(run_eval: ModuleType) -> None:
+    cases = [{"id": "a", "category": "hinglish"}, {"id": "b", "category": "english"}]
+    assert [c["id"] for c in run_eval.select_cases(cases, "hinglish")] == ["a"]
+    assert run_eval.select_cases(cases, None) == cases

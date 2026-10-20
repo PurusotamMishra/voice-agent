@@ -178,13 +178,24 @@ def summarise(result: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def select_cases(cases: list[dict[str, Any]], category: str | None) -> list[dict[str, Any]]:
+    return [c for c in cases if c["category"] == category] if category else cases
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--cases", type=Path, default=Path(__file__).parent / "cases.yaml")
+    parser.add_argument(
+        "--category", default=None, help="run one category; results files are not written"
+    )
     args = parser.parse_args()
     cases = yaml.safe_load(args.cases.read_text(encoding="utf-8"))
     if not cases or not isinstance(cases, list):
         print(f"No cases found in {args.cases}", file=sys.stderr)
+        return 2
+    cases = select_cases(cases, args.category)
+    if not cases:
+        print(f"No cases in category {args.category!r}", file=sys.stderr)
         return 2
     try:
         result = run(run_cases(cases))
@@ -194,6 +205,8 @@ def main() -> int:
         return 2
     summary = summarise(result)
     print("\n" + summary)
+    if args.category:
+        return 0 if pass_rate(result) >= PASS_TARGET else 1
     RESULTS_DIR.mkdir(exist_ok=True)
     (RESULTS_DIR / "latest.md").write_text(summary, encoding="utf-8")
     (RESULTS_DIR / "latest.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
