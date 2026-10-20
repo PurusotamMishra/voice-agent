@@ -6,8 +6,8 @@ from typing import Any
 import httpx
 
 from voice_agent.config import Settings, key
-from voice_agent.domain.ports import SttChoice, Transcript
-from voice_agent.providers.http import post_with_retry
+from voice_agent.domain.ports import ProviderError, SttChoice, Transcript
+from voice_agent.providers.http import json_body, post_with_retry
 
 GROQ_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 SARVAM_URL = "https://api.sarvam.ai/speech-to-text"
@@ -48,17 +48,21 @@ class GroqSTT:
             data=data,
             files={"file": (filename, audio, content_type)},
         )
-        body: dict[str, Any] = resp.json()
-        return Transcript(
-            text=str(body.get("text", "")).strip(),
-            provider=self.name,
-            language=body.get("language"),
-            confidence=_confidence(body.get("segments") or []),
-            audio_seconds=float(body.get("duration") or 0.0),
-        )
+        body = json_body(self.name, resp)
+        try:
+            return Transcript(
+                text=str(body.get("text", "")).strip(),
+                provider=self.name,
+                language=body.get("language"),
+                confidence=_confidence(body.get("segments") or []),
+                audio_seconds=float(body.get("duration") or 0.0),
+            )
+        except (TypeError, ValueError, AttributeError) as exc:
+            # Bad field types (non-numeric duration, non-dict segment, ...) are a vendor fault.
+            raise ProviderError(self.name, "invalid response body", retryable=False) from exc
 
 
-def _confidence(segments: list[dict[str, Any]]) -> float | None:
+def _confidence(segments: Any) -> float | None:
     """exp(mean avg_logprob): a rough 0..1 score, shown on screen, never used as a gate."""
     if not segments:
         return None
@@ -91,12 +95,15 @@ class SarvamSTT:
             data={"model": self._model, "mode": self._mode, "language_code": "hi-IN"},
             files={"file": (filename, audio, content_type)},
         )
-        body: dict[str, Any] = resp.json()
-        return Transcript(
-            text=str(body.get("transcript", "")).strip(),
-            provider=self.name,
-            language=body.get("language_code"),
-        )
+        body = json_body(self.name, resp)
+        try:
+            return Transcript(
+                text=str(body.get("transcript", "")).strip(),
+                provider=self.name,
+                language=body.get("language_code"),
+            )
+        except (TypeError, ValueError, AttributeError) as exc:
+            raise ProviderError(self.name, "invalid response body", retryable=False) from exc
 
 
 def make_stt(settings: Settings, client: httpx.AsyncClient) -> dict[str, SttChoice]:

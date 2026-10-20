@@ -13,6 +13,17 @@ def open_http_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(timeout=httpx.Timeout(20.0))
 
 
+def json_body(provider: str, resp: httpx.Response) -> dict[str, Any]:
+    """Parse a 2xx body that must be a JSON object; anything else is a ProviderError, not a crash."""
+    try:
+        body = resp.json()
+    except ValueError as exc:  # JSONDecodeError is a ValueError
+        raise ProviderError(provider, "invalid response body", retryable=False) from exc
+    if not isinstance(body, dict):
+        raise ProviderError(provider, "invalid response body", retryable=False)
+    return body
+
+
 async def post_with_retry(
     provider: str,
     client: httpx.AsyncClient,

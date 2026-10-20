@@ -2,7 +2,18 @@ import httpx
 import pytest
 
 from voice_agent.domain.ports import ProviderError
-from voice_agent.providers.http import post_with_retry
+from voice_agent.providers.http import json_body, post_with_retry
+
+
+def test_json_body_rejects_list_body() -> None:
+    with pytest.raises(ProviderError) as err:
+        json_body("v", httpx.Response(200, json=[1, 2]))
+    assert not err.value.retryable
+
+
+def test_json_body_rejects_non_json() -> None:
+    with pytest.raises(ProviderError):
+        json_body("v", httpx.Response(200, content=b"<html>"))
 
 
 def _client(statuses: list[int]) -> tuple[httpx.AsyncClient, list[int]]:
