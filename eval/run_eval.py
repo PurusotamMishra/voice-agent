@@ -34,6 +34,14 @@ def _now() -> str:
     return f"{datetime.now(UTC):%Y-%m-%d %H:%M} UTC"
 
 
+def describe_models(settings: Any) -> str:
+    """Which LLMs produced this run: results are only comparable across the same models."""
+    if settings.llm_provider != "groq":
+        return f"{settings.llm_provider}: {settings.gemini_model}"
+    compose = settings.groq_compose_model or settings.groq_model
+    return f"groq extract={settings.groq_model}, compose={compose}"
+
+
 def check_turn(expect: dict[str, Any], r: TurnResult) -> list[str]:
     failures: list[str] = []
     if r.route == "error":  # an exception-boundary turn never passes: an outage is not a success
@@ -87,7 +95,9 @@ async def run_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
     timings: dict[str, list[float]] = defaultdict(list)
     shown = unsafe = recheck_shown = recheck_unsafe = 0
     run_at = _now()
-    async with build_runtime(get_settings(), log_turns=False) as runner:
+    settings = get_settings()
+    models = describe_models(settings)
+    async with build_runtime(settings, log_turns=False) as runner:
         for case in cases:
             session = f"eval-{case['id']}-{uuid4().hex[:6]}"
             failures: list[str] = []
@@ -112,6 +122,7 @@ async def run_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
             print(f"{'PASS' if not failures else 'FAIL'}  {case['id']:<16} {'; '.join(failures)}")
     return {
         "run_at": run_at,
+        "models": models,
         "cases": report,
         "timings": timings,
         "shown": shown,
@@ -134,6 +145,8 @@ def summarise(result: dict[str, Any]) -> str:
     passed = sum(c["passed"] for c in cases)
     lines = [
         f"# Eval results ({result.get('run_at') or _now()})",
+        "",
+        f"Models: {result.get('models') or 'not recorded'}",
         "",
         f"**Overall: {passed}/{len(cases)} = {100 * pass_rate(result):.0f}%**",
         "",

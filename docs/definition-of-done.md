@@ -17,7 +17,7 @@ A task is done only when every applicable box is true. "Applicable" is decided h
 
 ## Changes touching the voice path, API or UI
 - [ ] Manually exercised once end to end: speak → hear answer, with the slots/SQL/latency panels populated
-- [ ] Fallback still works: typed input; `TTS_PROVIDER` failure → browser TTS
+- [ ] Fallback still works: typed input; ElevenLabs failure or no `ELEVENLABS_API_KEY` → browser TTS (`tts_client`)
 - [ ] `npm run lint && npm run build` pass in `ui/`
 
 ## Changes touching setup (Docker, deps, env)

@@ -123,3 +123,22 @@ def test_select_cases_by_category(run_eval: ModuleType) -> None:
     cases = [{"id": "a", "category": "hinglish"}, {"id": "b", "category": "english"}]
     assert [c["id"] for c in run_eval.select_cases(cases, "hinglish")] == ["a"]
     assert run_eval.select_cases(cases, None) == cases
+
+
+def test_summary_names_the_models(run_eval: ModuleType) -> None:
+    from voice_agent.config import Settings
+
+    settings = Settings(_env_file=None, groq_compose_model="qwen/qwen3.8-27b")  # type: ignore[call-arg]
+    models = run_eval.describe_models(settings)
+    assert models == "groq extract=openai/gpt-oss-120b, compose=qwen/qwen3.8-27b"
+    result = {
+        "run_at": "2026-01-01 00:00 UTC",
+        "models": models,
+        "cases": [{"id": "x", "category": "other", "passed": True, "failures": []}],
+        "timings": {"total": [1.0]},
+        "shown": 0,
+        "unsafe": 0,
+        "recheck_shown": 0,
+        "recheck_unsafe": 0,
+    }
+    assert f"Models: {models}" in run_eval.summarise(result)

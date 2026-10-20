@@ -20,7 +20,10 @@ Slot extraction is one LLM call (Groq, openai/gpt-oss-120b), so a case that pass
 `numbers.py` reads only the first km and the first payload mention. A contradictory first mention is dropped and marked in `NumericSlots.dropped` (decisions M3), and the LLM may not re-fill it. So "over 2 lakh km, under 50000 km" ends with no km wall. The input is contrived and the active slots are on screen, so it is accepted for now.
 
 ## Latency caveat
-`nlu` and `compose` are each a single Groq call. The free tier allows 8,000 tokens/min per model, and the SDK waits out 429s, so the eval's p50/p95 (latest run: NLU p50 5.7 s / p95 16.9 s, total p50 8.2 s / p95 18.6 s; the first run had NLU p50 9.6 s, total p95 ~25 s) may include rate-limit backoff and reasoning-token time. Treat them as an upper bound, not steady-state latency. Plan 2 (J5) measures the mitigation.
+`nlu` and `compose` are each a single Groq call. The free tier allows 8,000 tokens/min per model, and the SDK waits out 429s, so the eval's p50/p95 (latest run: NLU p50 5.7 s / p95 16.9 s, total p50 8.2 s / p95 18.6 s; the first run had NLU p50 9.6 s, total p95 ~25 s) may include rate-limit backoff and reasoning-token time. Treat them as an upper bound, not steady-state latency. The Plan 2 mitigations (gpt-oss reasoning effort `low`, optional separate compose model, sentence-level TTS) are measured in `latency.md`.
+
+## Groq free-tier daily cap
+Besides 8,000 tokens/min, the free tier caps each model at **200,000 tokens per day**. One full 32-case eval uses roughly 100–150k tokens, so a day of development plus one eval can exhaust `openai/gpt-oss-120b`: the extractor then falls back to rules and the composer to templates (the fallback path scored 18/32 when this happened on 2026-10-20). Splitting extraction and composition across models (`GROQ_COMPOSE_MODEL`) gives each its own daily bucket.
 
 ## Hinglish users hear English templates (decisions N1)
 The composer replies in the detected language, but the templates are English. A Hinglish buyer hears English on zero-result offers, confirmations ("Did you mean ...?"), follow-up answers, the STT-failure message and error turns. The Hinglish eval cases check filters and validator results, not the reply language, so they do not catch this.
