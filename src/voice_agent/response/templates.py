@@ -27,6 +27,7 @@ _SIMPLE = {
     "out_of_domain": "I can help you find a used commercial vehicle. What are you looking for?",
     "need_info": "Tell me what you need: vehicle type, budget, city or fuel.",
     "which_one": "Which one do you mean: the first, second or third?",
+    "relax_declined": "Okay. Tell me what to change: budget, city, fuel or vehicle type.",
     "error": "Sorry, something went wrong on my side. Could you say that again?",
 }
 

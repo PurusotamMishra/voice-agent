@@ -188,6 +188,7 @@ Fill this in as decisions are made; it goes into the README verbatim.
 - **E3 — Zero results: probe relaxations, suggest the smallest one that works.** DECIDED
   - On 0 rows, re-run `COUNT(*)` with each hard slot loosened one at a time: budget +20%, nearby cities (static neighbour map), any fuel, adjacent body type, drop explicit make. Pick the candidate with the smallest change and ≥1 result, and say it with the count: "Pune mein CNG pickup 5 lakh ke andar nahi mila. Budget 6 lakh tak karein toh 4 options hain. Karein?"
   - **Never auto-applied.** Only a `relax` intent ("haan") commits it, as a one-slot update.
+  - A bare "no" drops the offer and asks what to change, with no new search (2026-10-20, review finding 2); "no" plus a new value searches with that value. A "yes" accepts even when the LLM labels the turn `search`.
   - Cost: up to ~5 extra `COUNT` queries on zero-result turns only (<10 ms each on 200 rows).
 - **F1 — LLM phrases from a fact sheet → validator → regenerate once → deterministic template fallback.** DECIDED
   - The LLM receives only a fact sheet: top-3 records (IDs, pre-formatted values, top reason features). No raw catalog, no free-text description.

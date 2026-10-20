@@ -135,3 +135,27 @@ def test_budget_bounds_from_two_turns_are_both_kept() -> None:
     mem2, diff, _ = apply_understanding(mem, u(updates={"budget_min": 300_000}))
     assert (mem2.slots.budget_min, mem2.slots.budget_max) == (300_000, 500_000)
     assert diff == {"budget_min": (None, 300_000)}
+
+
+RELAX_MEM = BASE.model_copy(
+    update={"pending_relaxation": Relaxation(slot="city", old=City.MUMBAI, new=City.PUNE, count=3)}
+)
+
+
+def test_no_declines_relaxation_without_searching() -> None:
+    mem, diff, route = apply_understanding(RELAX_MEM, u(confirmation="no"))
+    assert route.kind == "relax_declined" and diff == {}
+    assert mem.pending_relaxation is None and mem.slots == BASE.slots
+
+
+def test_no_with_a_new_value_searches_with_it() -> None:
+    mem, diff, route = apply_understanding(
+        RELAX_MEM, u(confirmation="no", updates={"fuel": Fuel.CNG})
+    )
+    assert route.kind == "search" and diff == {"fuel": ("diesel", "cng")}
+    assert mem.pending_relaxation is None
+
+
+def test_yes_labelled_search_accepts_relaxation() -> None:
+    _, diff, route = apply_understanding(RELAX_MEM, u(Intent.SEARCH, confirmation="yes"))
+    assert route.kind == "search" and diff == {"city": ("mumbai", "pune")}

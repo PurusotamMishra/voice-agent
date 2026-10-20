@@ -17,6 +17,7 @@ RouteKind = Literal[
     "out_of_domain",
     "unsupported",
     "need_info",
+    "relax_declined",
 ]
 
 

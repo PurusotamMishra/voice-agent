@@ -58,6 +58,14 @@ def apply_understanding(mem: Memory, u: Understanding) -> tuple[Memory, SlotDiff
             updates = {**pending.deferred_updates, pending.slot: pending.candidate, **updates}
         return _search_with(mem, updates)
 
+    if mem.pending_relaxation is not None:
+        r = mem.pending_relaxation
+        if ti.intent is Intent.RELAX or ti.confirmation == "yes":
+            return _search_with(mem, {r.slot: r.new})
+        if ti.confirmation == "no" and not u.updates:  # E3: declined; ask instead of re-offering
+            declined = mem.model_copy(update={"pending_relaxation": None})
+            return declined, {}, Route(kind="relax_declined")
+
     if u.low_confidence:
         lc = u.low_confidence[0]
         pending = PendingConfirmation(
@@ -89,10 +97,6 @@ def apply_understanding(mem: Memory, u: Understanding) -> tuple[Memory, SlotDiff
                 follow_up_field=ti.follow_up_field or FollowUpField.SUMMARY,
             ),
         )
-
-    if ti.intent is Intent.RELAX and mem.pending_relaxation is not None:
-        r = mem.pending_relaxation
-        return _search_with(mem, {r.slot: r.new})
 
     return _search_with(mem, u.updates)
 

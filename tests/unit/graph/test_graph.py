@@ -219,3 +219,23 @@ async def test_state_snapshot_is_json_safe() -> None:
 
     json.dumps(snap)  # must not raise
     assert (await r.state("never-seen"))["slots"] == {}
+
+
+async def test_declined_relaxation_answers_with_template() -> None:
+    llm = FakeLLM(
+        [
+            TurnIntent(
+                intent=Intent.SEARCH,
+                slots=ExtractedSlots(
+                    fuel=Fuel.ELECTRIC, body_type=BodyType.PICKUP, city_mention="Mumbai"
+                ),
+            ),
+            TurnIntent(intent=Intent.SEARCH, confirmation="no"),
+        ]
+    )
+    r = runner(llm)
+    t1 = await r.run("s-decline", "electric pickup in Mumbai")
+    assert t1.route == "search" and t1.results == []
+    t2 = await r.run("s-decline", "no")
+    assert t2.route == "relax_declined" and t2.filters is None
+    assert t2.response_text == templates.simple("relax_declined").text()
