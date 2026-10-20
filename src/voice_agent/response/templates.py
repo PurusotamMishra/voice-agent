@@ -42,7 +42,8 @@ def simple(kind: str) -> ComposedResponse:
 def results(facts: FactSheet) -> ComposedResponse:
     items = []
     for i in facts.items:
-        reasons = [r for r in i.reasons if not r.startswith("priced at")]
+        # The sentence already states price and km; skip reasons that would repeat them.
+        reasons = [r for r in i.reasons if i.price not in r and i.km not in r]
         tail = f", {', '.join(reasons)}" if reasons else ""
         text = f"{ORDINALS[i.rank - 1]}, the {i.title} in {i.city} at {i.price}, {i.km}{tail}."
         items.append(ItemSentence(listing_id=i.listing_id, text=text))
