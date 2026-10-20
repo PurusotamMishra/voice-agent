@@ -15,26 +15,26 @@ If code and this document disagree, fix one of them in the same change.
  │                           │                    │                 ▼                        │◄─►│ city_neighbors│
  │ Panels: transcript, slots,│ ◄──────────────────┤ [4] Search+Rank (or Relax probe)         │   │ checkpoints  │
  │ SQL, top-3 + scores,      │  NDJSON event      │                 │                        │   │ (LangGraph)  │
- │ validator, latency        │  stream            │ [5] Compose ─► Validate ─► TTS (per sent.)│   │ (turn_log P2)│
+ │ validator, latency        │  stream            │ [5] Compose ─► Validate ─► TTS (per sent.)│   │ (turn_log: unused)│
  │ Audio queue player        │                    │                                          │   └──────────────┘
  └───────────────────────────┘                    │ [7] telemetry: timings, usage, turn log   │
                                                   └──────────────────────────────────────────┘
  eval/ ── runs cases through the same graph (text in, TTS off) ──► pass rate per category
 ```
 
-Status: the text loop (understand → state → search/rank/relax → respond) is built and driven by `cli.py` and `eval/run_eval.py`. The browser UI, FastAPI app, STT and TTS are **Plan 2**. Today `docker-compose.yml` runs only `db` (Postgres 16 with `pg_trgm`, host port 5433); Plan 2 adds `ui` (nginx serving the React app, proxies `/api` → `app`) and `app` (FastAPI, uvicorn).
+Status: built. The text loop (understand → state → search/rank/relax → respond) is driven by `cli.py`, `eval/run_eval.py` and the API. The voice loop adds the browser UI, the FastAPI app, STT and TTS. `docker-compose.yml` runs `db` (Postgres 16 with `pg_trgm`, host port 5433), `app` (FastAPI under uvicorn, port 8000) and `ui` (nginx on host port 5173, serving the React build and proxying `/api` → `app`).
 
 ## 2. The seven components → code
 
 | # | Component (brief §2) | Package / path | Hides | Swap target |
 |---|---|---|---|---|
-| 1 | Voice interface | **Plan 2**: `ui/src/` (recorder, audio queue, panels) + `src/voice_agent/api/`. Today: `src/voice_agent/cli.py` (text chat) | MediaRecorder, streaming fetch, playback | Twilio/WebRTC client |
-| 2 | STT | **Plan 2** (a `SpeechToText` Protocol + Groq/Sarvam providers, called outside the graph) | Vendor API, audio format | Any STT impl |
+| 1 | Voice interface | `ui/src/` (`audio/` recorder + audio queue, `panels/`, `api/` NDJSON client) + `src/voice_agent/api/` (`app.py` routes, `stream.py` turn events, `services.py` wiring, `__main__.py` entry). Also `src/voice_agent/cli.py` (text chat) | MediaRecorder, streaming fetch, playback | Twilio/WebRTC client |
+| 2 | STT | `SpeechToText` Protocol (`domain/ports.py`); `providers/stt.py` (`GroqSTT`, `SarvamSTT`, `make_stt`), called from `api/stream.py` outside the graph; `providers/http.py` (retry, `json_body`) | Vendor API, audio format | Any STT impl |
 | 3 | Understanding | `understanding/` — `pipeline.py` (`understand()`: LLM + number override + normalisation), `numbers.py` (money/units parser), `extractor.py` (LLM structured call), `rules.py` (LLM-outage fallback), `schema.py`. Normaliser: `providers/postgres.py` `PgNormalizer` (alias + `pg_trgm`) | Prompting, LLM vendor, alias fuzziness | Fine-tuned NLU / different LLM |
 | 4 | Catalog + search | `catalog/` — `filters.py` (Filters → SQL, plus the `constraint_violations` re-check), `ranker.py`, `relax.py`. Search: `providers/postgres.py` `PgCatalog` | SQL, ranking weights | Elastic/OpenSearch, learned ranker |
-| 5 | Response (+ TTS) | `response/` — `factsheet.py`, `formatting.py`, `composer.py`, `validator.py`, `templates.py`, `schema.py`. TTS is **Plan 2** | LLM phrasing, number formatting, TTS vendor | Any TTS impl |
+| 5 | Response (+ TTS) | `response/` — `factsheet.py`, `formatting.py`, `composer.py`, `validator.py`, `templates.py`, `schema.py`. TTS: `TextToSpeech` Protocol; `providers/tts.py` (`ElevenLabsTTS`, `speakable`, `make_tts`), called per sentence from `api/stream.py` | LLM phrasing, number formatting, TTS vendor | Any TTS impl |
 | 6 | Conversation state | `state/` — `models.py` (`Memory`, `Route`), `reducer.py` (merge / one-slot correction / confirm), `references.py`; persisted by the LangGraph Postgres checkpointer | Merge rules, reference resolution | Redis-backed store |
-| 7 | Eval + latency | `eval/` (`cases.yaml`, `run_eval.py`, `results/`); `telemetry/` (`timing.py`, `turnlog.py`). Audio eval and latency/cost scripts are **Plan 2** | — | — |
+| 7 | Eval + latency | `eval/` (`cases.yaml`, `run_eval.py`, `results/`); `telemetry/` (`timing.py`, `turnlog.py`). `eval/run_audio_eval.py` + `eval/audio/cases.yaml` (STT subset); `scripts/latency_report.py`, `scripts/cost_report.py`, `scripts/make_eval_audio.py`; prices in `config/prices.yaml` | — | — |
 
 Glue: `graph/` — `build.py` (LangGraph `StateGraph` wiring only), `state.py` (`ConversationState` + checkpoint serde allowlist), `runner.py` (`TurnRunner`: one call = one turn, with an error boundary), `runtime.py` (wires real providers). LLM providers: `providers/llm.py` (`LangChainLLM`, `FailoverLLM`, `make_llm`).
 
@@ -44,23 +44,26 @@ Glue: `graph/` — `build.py` (LangGraph `StateGraph` wiring only), `state.py` (
 voice-agent/
 ├── CLAUDE.md                 # agent guide (start here)
 ├── CITATIONS.md
-├── docker-compose.yml        # db only today; ui + app in Plan 2
+├── Dockerfile  docker-compose.yml   # db + app + ui
 ├── pyproject.toml / uv.lock
-├── config/ranking.yaml       # ranker weights (E2)
+├── config/                   # ranking.yaml (ranker weights, E2), prices.yaml (N8)
 ├── docs/                     # decisions, architecture, standards, definition-of-done
 ├── data/                     # models.csv, listings.csv, aliases.csv, city_neighbors.csv
 ├── src/voice_agent/
 │   ├── config.py  cli.py  aio.py
 │   ├── domain/               # enums, shared Pydantic models, Protocols (ports.py)
 │   ├── understanding/  catalog/  response/  state/   # components 3–6
+│   ├── api/                  # FastAPI app, NDJSON turn stream, wiring (STT/TTS sit here, outside the graph)
 │   ├── graph/                # LangGraph wiring, state, TurnRunner, runtime
-│   ├── providers/            # ONLY place for vendor SDKs, LangChain chat models and DB queries
+│   ├── providers/            # ONLY place for vendor calls (llm, stt, tts, http), LangChain chat models and DB queries
 │   ├── telemetry/            # timer, JSONL turn log
 │   └── db/                   # schema.sql, seed.py (loads data/*.csv on first boot)
+├── ui/                       # Vite + React + TS; Dockerfile + nginx.conf
+├── scripts/                  # generate_catalog, latency_report, cost_report, make_eval_audio
 ├── tests/unit/  tests/db/    # unit: no network; db: @pytest.mark.db
-└── eval/                     # cases.yaml, run_eval.py, results/
+└── eval/                     # cases.yaml, run_eval.py, run_audio_eval.py, audio/, results/
 ```
-Plan 2 adds `api/`, `stt/`, `tts/`, `ui/`, `scripts/` (latency/cost reports), a `Dockerfile` and `README.md`.
+STT and TTS are not packages of their own: they live in `providers/` and are called from `api/stream.py`.
 
 ## 4. Domain model (`src/voice_agent/domain/`)
 
@@ -107,9 +110,9 @@ class ScoredListing(BaseModel):    # listing + score + contributions: dict[str, 
 - `rank`: `catalog.ranker.rank` → top-3 `ScoredListing` + `last_results`. `relax`: `catalog.relax.propose_relaxation` → `pending_relaxation`.
 - `respond`: a search with results → `response.composer.compose_results` (LLM → validator → regenerate once → template); every other route (zero results, follow-up, confirm, unsupported, reset, …) → `response.templates`.
 - Nodes are thin; **no LLM decides routing** beyond the intent label. Checkpointer: LangGraph Postgres saver, `thread_id = session_id` (G4).
-- `graph/runner.py` `TurnRunner.run(session_id, text) -> TurnResult` is the seam the CLI, the eval and (Plan 2) the API call. An exception inside the graph becomes a templated error turn (`route="error"`, `fallback_used=["error"]`) and the session continues.
+- `graph/runner.py` `TurnRunner.run(session_id, text) -> TurnResult` is the seam the CLI, the eval and the API call. An exception inside the graph becomes a templated error turn (`route="error"`, `fallback_used=["error"]`) and the session continues.
 
-> STT and TTS sit outside the graph (Plan 2): `audio → STT → TurnRunner.run(text) → TTS per sentence`. The graph is text-in/text-out, so the eval and CLI exercise exactly the graph the voice path will use.
+> STT and TTS sit outside the graph: `audio → STT → TurnRunner.run(text) → TTS per sentence`. The graph is text-in/text-out, so the eval and CLI exercise exactly the graph the voice path will use.
 
 ### Graph state (`graph/state.py`)
 
@@ -157,7 +160,19 @@ class Catalog(Protocol):        # PgCatalog
     async def get(self, listing_id: str) -> Listing | None: ...
 ```
 
-Ranking, composing and validating are plain functions, not Protocols (`rank`, `compose_results`, `validate`). Plan 2 adds `SpeechToText` and `TextToSpeech` Protocols. Providers are chosen in `config.py` from env (`LLM_PROVIDER`, `LLM_FALLBACK_PROVIDER`, `GROQ_MODEL`, `GEMINI_MODEL`); unit tests use the fakes in `tests/fakes.py`.
+Ranking, composing and validating are plain functions, not Protocols (`rank`, `compose_results`, `validate`). The voice loop adds two more Protocols, implemented in `providers/stt.py` and `providers/tts.py`:
+
+```python
+class SpeechToText(Protocol):   # GroqSTT, SarvamSTT
+    name: str
+    async def transcribe(self, audio: bytes, filename: str, content_type: str) -> Transcript: ...
+
+class TextToSpeech(Protocol):   # ElevenLabsTTS; None means the browser speaks
+    name: str
+    async def synthesize(self, text: str) -> bytes: ...   # complete MP3 bytes (N2)
+```
+
+Providers are chosen in `config.py` from env (`LLM_PROVIDER`, `LLM_FALLBACK_PROVIDER`, `GROQ_MODEL`, `GEMINI_MODEL`, and for voice `GROQ_STT_MODEL`, `SARVAM_API_KEY`, `ELEVENLABS_API_KEY`, `TTS_MODE`); STT is picked per request by language (N3); unit tests use the fakes in `tests/fakes.py`.
 
 ## 7. Understanding details (D1–D7, `understanding/pipeline.py`)
 
@@ -200,36 +215,46 @@ Failure → regenerate once with the violations listed in the prompt → still f
 
 **Known limits** (said out loud in the presentation): see decisions F3.
 
-## 10. API (`src/voice_agent/api/`) — Plan 2
+## 10. API (`src/voice_agent/api/`)
+
+Implemented. `create_app(settings, services)` in `app.py` is thin: it parses the request and streams the events from `stream.run_turn`. `services.py` wires the real runtime, STT and TTS around one shared `httpx` client. `python -m voice_agent.api` serves it with uvicorn.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/api/session` | — | `{session_id}` |
-| POST | `/api/turn` | multipart: `session_id`, `audio` (webm/opus) **or** `text` | `application/x-ndjson` event stream |
-| POST | `/api/turn/{turn_id}/client-timings` | `{t_speech_end, t_first_audio}` (epoch ms) | 204 |
-| GET | `/api/session/{id}/state` | — | current `ConversationState` (minus audio) |
-| GET | `/api/health` | — | db + provider key presence |
+| POST | `/api/session` | none | `{session_id}` |
+| POST | `/api/turn` | multipart: `session_id`, `language` (`en` or `hi-en`, default `en`), `audio` (webm/opus) **or** `text`, optional `audio_seconds` | `application/x-ndjson` event stream; 400 if neither audio nor text |
+| POST | `/api/turn/{turn_id}/client-timings` | `{t_speech_end, t_first_audio}` (epoch ms) | 204; appended to `logs/client_timings.jsonl` |
+| GET | `/api/session/{id}/state` | none | current graph state from `TurnRunner.state` |
+| GET | `/api/health` | none | static: `ok`, `llm`, `stt` provider per language, `tts` provider (or `client`), `tts_mode` (N10) |
 
 NDJSON events, in order (each line is `{"type": ..., ...}`):
-`transcript` → `understanding` (intent, slots, slot_diff, confidences, pending_confirmation) → `search` (sql, params, results with scores/contributions, relaxation) → `sentence`×N (`text`, `audio_b64` | `null`, `tts: "server"|"client"`) → `done` (validator verdict, fallback_used, timings_ms, usage, turn_id).
+`transcript` (`text`, `source` = `typed` or `stt`, `provider`, `confidence`, `language`) → `understanding` (`turn`, `intent`, `language`, `route`, `slots`, `slot_diff`, `pending_confirmation`) → `search` (`filters`, `sql`, `params`, `results` with scores/contributions, `relaxation`) → `sentence`×N (`index`, `text`, `audio_b64` | `null`, `tts: "server"|"client"`) → `done` (`turn_id`, `turn`, `response_text`, `verdict`, `fallback_used`, `timings_ms`, `usage`).
 
-The browser plays `sentence` audio in a queue as each one arrives and stamps `t_first_audio` on the first playback start.
+STT failure (error, no STT configured for the language, or an empty transcript) sequence: `transcript` (empty `text`) → one `sentence` ("Sorry, I didn't catch that. Could you say it again, or type it?") → `done` with `turn: null` and `verdict: null`. No `understanding` or `search` event is sent, and the graph does not run, so session state is unchanged. `fallback_used` carries `stt_error`, `stt_unavailable` or `stt_empty`.
+
+`understanding` and `search` are emitted after `TurnRunner.run` returns (N4), so they arrive together, before the first `sentence`. The browser plays `sentence` audio in a queue as each one arrives and stamps `t_first_audio` on the first playback start. Each turn is logged once to `logs/turns.jsonl` by the API (N5).
 
 ## 11. Latency instrumentation (J4)
 
-Server stamps (monotonic): `request_received, stt_done, nlu_done, state_done, search_done, compose_done, validate_done, tts_first_byte, done`. Browser stamps: `t_speech_end` (button release), `t_first_audio`. Headline metric = `t_first_audio − t_speech_end`. Today the graph records `nlu`, `search`, `rank`/`relax`, `compose` and `total` in `timings_ms` (JSONL turn log + eval p50/p95); the STT/TTS/browser stamps and the UI latency panel are Plan 2.
+Implemented. The `done` event carries `timings_ms`:
+- from the graph: `nlu`, `search`, `rank` or `relax`, `compose`, and the graph total as `pipeline`;
+- from the API: `stt` (audio turns), `first_audio_ready` (clock from request start to the first `sentence` event), `tts` (sum of TTS calls) and `server_total`.
+
+The browser stamps `t_speech_end` (button release, or typed submit) and `t_first_audio`, and posts them to `/api/turn/{turn_id}/client-timings`. Headline metric = `t_first_audio − t_speech_end`, written to `logs/client_timings.jsonl` as `speech_end_to_first_audio_ms`. The UI latency panel shows the stages. `scripts/latency_report.py` joins the two logs by `turn_id` and prints p50/p95 per stage, split by `tts_mode`.
 
 ## 12. Data store (`src/voice_agent/db/schema.sql`)
 
-Tables: `listings` (index on `(body_type, fuel, city, price_inr)`), `aliases(alias, canonical, kind)` with a `gin (alias gin_trgm_ops)` index, `city_neighbors`, plus the LangGraph checkpoint tables (created by the saver's `setup()`). `seed.py` loads the CSVs if `listings` is empty. The turn log is `logs/turns.jsonl` (one JSON `TurnResult` per turn); the `turn_log` table exists in the schema but is reserved for Plan 2 and not written yet.
+Tables: `listings` (index on `(body_type, fuel, city, price_inr)`), `aliases(alias, canonical, kind)` with a `gin (alias gin_trgm_ops)` index, `city_neighbors`, plus the LangGraph checkpoint tables (created by the saver's `setup()`). `seed.py` loads the CSVs if `listings` is empty. The turn log is `logs/turns.jsonl` (one JSON record per turn: the runner's `TurnResult` from the CLI and eval, the API's richer record from the server) and browser timings go to `logs/client_timings.jsonl`; the `turn_log` table exists in the schema but is reserved and not written: the JSONL files are the log (N5).
 
 ## 13. Failure modes & fallbacks (H5, I2)
 
 | Failure | Detection | Behaviour |
 |---|---|---|
 | Mic denied / broken | browser error | typed input box |
-| STT error/timeout | `ProviderError` | spoken/text "Sorry, didn't catch that"; state unchanged |
+| STT error/timeout/empty | `ProviderError` or empty text | spoken "Sorry, I didn't catch that" (`transcript` → `sentence` → `done`, see §10); state unchanged; `stt_error` / `stt_empty` |
+| No Sarvam key for Hinglish | `make_stt` | Groq Whisper with a Roman-script prompt; `stt_hinglish_groq` |
 | LLM 429/5xx/timeout | `ProviderError` after backoff | failover to alternate LLM → else rules-only extractor / template composer |
 | Validator fails twice | `Verdict.ok == False` | deterministic template response |
-| TTS quota/outage | `ProviderError` | `tts: "client"` → browser `speechSynthesis` |
-| DB down | health check | 503 with message; compose healthcheck prevents start-up races |
+| TTS quota/outage, empty audio, or no key | `ProviderError` / empty bytes / `tts is None` | `tts: "client"` → browser `speechSynthesis`; `tts_client` (N12) |
+| DB down at startup | lifespan opens the DB | the app fails to start; compose `depends_on: service_healthy` prevents start-up races |
+| DB lost after startup | exception in the graph | error turn (`route="error"`, M5); `/api/health` stays `ok` (N10) |

@@ -25,8 +25,8 @@ A task is done only when every applicable box is true. "Applicable" is decided h
 - [ ] README updated if any command, key or port changed
 
 ## Milestones (project level)
-- [ ] **M1 — text loop:** typed utterance → slots → SQL → top-3 → validated text; eval ≥ 90% (English)
+- [x] **M1 — text loop:** typed utterance → slots → SQL → top-3 → validated text; eval ≥ 90% (English) (eval 25/25, 2026-10-19)
 - [ ] **M2 — voice loop:** PTT → STT → … → streamed TTS; latency panel shows all stages
-- [ ] **M3 — awkward turns:** correction, zero-result + relaxation, follow-up all pass in eval and live
+- [x] **M3 — awkward turns:** correction, zero-result + relaxation, follow-up all pass in eval and live (correction 3/3, zero_result 2/2, follow_up 2/2 in the eval)
 - [ ] **M4 — Hinglish:** Sarvam STT path + Hinglish eval cases ≥ 90%
 - [ ] **M5 — ship:** Docker ≤10-min setup verified, README, eval results committed, latency + cost reports generated

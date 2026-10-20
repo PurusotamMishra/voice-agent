@@ -63,3 +63,18 @@ These rows have `source_url = estimate` because the numbers could not be confirm
 - `tata_ace_ht_plus_diesel` GVW (1,870) was estimated because sources conflicted (900 vs 1,100 kg payload).
 - `mahindra_jeeto_diesel` payload (700) was estimated: the source lists 600 kg generically and a 1,605 kg GVW for the diesel.
 - Launch years are approximate throughout. They are only used to set the earliest listing year, with a floor of 2012.
+
+## Models, vendors and libraries used
+
+No third-party code was copied into the repository. These are used through their public APIs or as dependencies.
+
+- **Groq Whisper (`whisper-large-v3`)**: English STT, and the Hinglish fallback when no Sarvam key is set. https://console.groq.com/docs/speech-to-text
+- **Sarvam Saaras (`saaras:v3`, mode `translit`)**: Hinglish STT when `SARVAM_API_KEY` is set. https://docs.sarvam.ai/
+- **ElevenLabs Flash (`eleven_flash_v2_5`)**: server TTS, and the voice for the synthetic eval clips. https://elevenlabs.io/docs
+- **Groq `openai/gpt-oss-120b`** and **Google `gemini-2.5-flash-lite`**: extractor and composer LLMs (see decisions M4).
+- **FastAPI**: the HTTP API. https://fastapi.tiangolo.com/
+- **uvicorn**: serves the FastAPI app. https://www.uvicorn.org/
+- **httpx**: HTTP client for the STT and TTS vendor calls. https://www.python-httpx.org/
+- **Vite** and **React**: the browser UI. https://vite.dev/ and https://react.dev/
+
+Vendor prices in `config/prices.yaml` were checked on 2026-10-20 from the vendors' public pricing pages. The ElevenLabs Flash row and the USD to INR rate are unverified (see decisions N8).

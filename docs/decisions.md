@@ -255,10 +255,10 @@ Fill this in as decisions are made; it goes into the README verbatim.
 Vendor limits below were checked on 2026-10-19 via third-party sources and **must be re-verified on each vendor's own dashboard at signup**.
 
 - **H1 — Browser UI (the `ui` container); mic captured on the host by the browser.** DECIDED (follows from C4). Avoids passing a mic into Docker.
-- **H2 — STT: Groq `whisper-large-v3` for the English phase; Sarvam Saaras (codemix mode) for the Hinglish phase.** DECIDED
+- **H2 — STT: Groq `whisper-large-v3` for the English phase; Sarvam Saaras for the Hinglish phase (mode: `translit`, not `codemix`; see N3).** DECIDED
   - Groq: free, very fast, reported ~20 RPM / ~2,000 RPD. Weak spot: Hindi/Hinglish may come back in Devanagari/Urdu script or mistranscribed.
-  - Sarvam: built for Indian languages, with a `codemix` output mode; reported ₹1,000 free credits, ~₹30/hour of audio.
-  - Both implement `SpeechToText`; selected by `STT_PROVIDER` env var. The eval reports the pass rate per provider.
+  - Sarvam: built for Indian languages, with several output modes (N3 picks `translit`); reported ₹1,000 free credits, ~₹30/hour of audio.
+  - Both implement `SpeechToText`; N3 says how one is chosen per request. The audio eval reports the pass rate per provider.
   - *Rejected:* Gemini audio input (burns scarce LLM quota); local faster-whisper (slow on CPU in Docker, large image).
 - **H3 — TTS: ElevenLabs Flash (streaming) with browser `speechSynthesis` fallback.** DECIDED
   - ElevenLabs docs cite ~75 ms model inference for Flash (network excluded). The free tier is reported at ~10k credits/month, so **TTS is off during eval runs** (the eval checks filters/responses, not audio) to keep the quota for dev + demo.
@@ -367,3 +367,47 @@ One item already answered because it affects instrumentation:
 - **M6 — Follow-ups are answered by template.** DECIDED (narrows F5). The referenced listing is fetched by ID and `templates.follow_up` fills one sentence from its formatted fact item; no LLM call.
   - *Rejected:* LLM phrasing + validator for follow-ups. A second LLM call per turn for a one-fact answer, with hallucination risk to manage.
   - *Why:* zero hallucination risk, lower latency and quota use (Assumption 9). Cost: follow-up answers are English-only and less varied in phrasing.
+
+## N. Implementation decisions (taken while building the voice loop)
+
+- **N1 — Reply language.** DECIDED. The composer already replies in the detected language (English or Roman-script Hinglish). Templates stay English.
+  - *Rejected:* translating every template into Hinglish.
+  - *Why:* a code-switching buyer understands the English templates, and translating them all would be gold-plating. Cost if wrong: Hinglish users hear English on zero-result, confirm and follow-up turns.
+- **N2 — Sentence-level TTS.** DECIDED. One vendor call per sentence, returning complete MP3 bytes. Each `sentence` NDJSON event carries `audio_b64`. `TTS_MODE=sentence|whole` lets J5 compare the two; "whole" means one call for the full text.
+  - *Rejected:* streaming raw audio chunks over the NDJSON channel.
+  - *Why:* complete MP3 per sentence is simple to queue in the browser and keeps the validator-then-speak order (H4). Cost if wrong: the first sentence still waits for its own full synthesis (a few hundred ms).
+- **N3 — STT is chosen per request by the `language` form field.** DECIDED.
+  - `en` → `GroqSTT` (`whisper-large-v3`, `language=en`).
+  - `hi-en` → `SarvamSTT` (`saaras:v3`, mode `translit`) when `SARVAM_API_KEY` is set.
+  - Otherwise `hi-en` → `GroqSTT` with no language and a Roman-script prompt, recording fallback `stt_hinglish_groq`.
+  - *Rejected:* Sarvam `codemix` mode (the H2 wording), and a global `STT_PROVIDER` switch.
+  - *Why:* codemix returns Hindi words in Devanagari, and our parser and aliases are Roman script. A per-request choice lets one server handle both languages. Cost if wrong: transliteration spelling variants ("panch") the parser doesn't know.
+- **N4 — Understanding and search events are emitted after `TurnRunner.run` returns.** DECIDED. The graph runs atomically.
+  - *Rejected:* streaming node-by-node events out of the graph.
+  - *Why:* it keeps `graph/` text-in/text-out. Cost: those panels update a few seconds later than true streaming would. They still arrive before audio.
+- **N5 — API logging.** DECIDED. The API builds the runtime with `log_turns=False` and writes its own richer record (TurnResult + turn_id + STT/TTS timings + tts_mode) to `logs/turns.jsonl`. Browser timings go to `logs/client_timings.jsonl`, keyed by `turn_id`.
+  - *Rejected:* two records per turn from the runner and the API.
+  - *Why:* one record per turn (K4) with the stages only the API sees.
+- **N6 — LLM latency knobs** (second J5 lever, aimed at the 8k TPM bottleneck from M4). DECIDED.
+  - `LLM_REASONING_EFFORT=low` is passed to Groq gpt-oss models.
+  - Optional `GROQ_COMPOSE_MODEL` puts the composer on its own model and token bucket. Default unset = same model.
+  - *Rejected:* a rules fast-path that skips the LLM (J5 second candidate), as more code for this scope.
+  - *Why:* both are config only. Cost if wrong: lower reasoning effort may cost some extraction quality.
+- **N7 — Audio eval clips.** DECIDED. `scripts/make_eval_audio.py` synthesises stand-in clips (one with added noise) via ElevenLabs. They are labelled `synthetic: true` in `eval/audio/cases.yaml` and in the results. The user may overwrite them with real recordings under the same names.
+  - *Rejected:* committing only real recordings (none exist yet).
+  - *Why:* the audio path needs an eval now. J1 asked for real voice, so the README says which kind was used. Cost: synthetic speech is cleaner than a buyer in a truck yard, so STT results are optimistic.
+- **N8 — Prices** live in `config/prices.yaml`, with the date they were checked and a "re-verify" note. DECIDED. The cost report converts USD → INR with one rate from that file.
+  - *Rejected:* prices hard-coded in the script.
+  - *Why:* the numbers change and some are unverified (ElevenLabs Flash row, the USD→INR rate).
+- **N9 — Compose sets `API_HOST=0.0.0.0` and `API_PORT=8000` under `environment:`.** DECIDED. `.env.example` has `API_HOST=127.0.0.1` for local runs, and `env_file` would inject it into the container, where nginx could not reach the app.
+  - *Rejected:* editing `.env.example`, which breaks local dev.
+  - *Why:* `environment:` wins over `env_file`.
+- **N10 — `/api/health` is static.** DECIDED. The lifespan opens the DB and fails fast at startup if it is down, so `ok: true` means the DB was up when the app started. The body reports the LLM provider, the STT provider per language, the TTS provider (or `client`) and `tts_mode`. There is no per-request DB ping and no 503.
+  - *Rejected:* a DB ping on each health call.
+  - *Why:* the compose healthcheck only needs "the app started". A DB lost after startup surfaces as error turns (M5), not as a health failure. Cost: health does not notice a DB that dies later.
+- **N11 — Every vendor response body is parsed through `providers.http.json_body`.** DECIDED. A malformed 2xx body (not JSON, not an object, bad field types) becomes `ProviderError`.
+  - *Rejected:* letting `resp.json()` errors propagate.
+  - *Why:* `ProviderError` is the vendor-failure exception callers catch (standards §3); anything else would crash the turn.
+- **N12 — Empty TTS audio is a TTS failure.** DECIDED. `_speak` raises `ProviderError` on empty bytes, records `tts_client` and the browser speaks the rest of the turn.
+  - *Rejected:* sending an empty `audio_b64`.
+  - *Why:* the browser would play silence and the user would hear nothing (hard rule 7: no silent failure).

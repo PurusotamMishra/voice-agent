@@ -10,11 +10,12 @@ Buyer speaks (English/Hinglish) → STT → slot extraction → hard-filtered SQ
 4. `docs/definition-of-done.md` — checklist before calling anything done.
 
 ## Map
-- `src/voice_agent/` — `api/` · `stt/` · `understanding/` · `catalog/` · `response/` · `tts/` · `state/` · `graph/` (LangGraph wiring only) · `providers/` (only place for vendor SDKs) · `telemetry/` · `db/` · `domain/` (enums + shared models)
+- `src/voice_agent/` — `api/` (FastAPI, NDJSON turn stream) · `understanding/` · `catalog/` · `response/` · `state/` · `graph/` (LangGraph wiring only) · `providers/` (only place for vendor calls: `llm`, `stt`, `tts`, `http`, `postgres`) · `telemetry/` · `db/` · `domain/` (enums, shared models, Protocols). STT and TTS are in `providers/`, called from `api/stream.py`.
 - `ui/` — Vite + React + TS (push-to-talk, panels)
-- `eval/` — `cases.yaml`, `run_eval.py`, `audio/`, `results/`
+- `eval/` — `cases.yaml`, `run_eval.py`, `run_audio_eval.py`, `audio/`, `results/`
 - `data/` — `models.csv`, `listings.csv` (generated, seed 42), `aliases.csv`, `city_neighbors.csv`
-- `scripts/` — `generate_catalog.py`, `latency_report.py`, `cost_report.py`
+- `scripts/` — `generate_catalog.py`, `make_eval_audio.py`, `latency_report.py`, `cost_report.py`
+- `config/` — `ranking.yaml`, `prices.yaml`
 
 ## Commands
 ```bash
@@ -22,10 +23,15 @@ uv sync                                   # install
 uv run pytest                             # unit tests (no network)
 uv run ruff format . && uv run ruff check .
 uv run mypy src
-uv run python eval/run_eval.py            # live eval (needs GROQ_API_KEY)
+uv run python -m voice_agent.api          # API on :8000 (needs db: docker compose up -d db)
+uv run python eval/run_eval.py            # live eval (needs GROQ_API_KEY); --category hinglish for one category
+uv run python eval/run_audio_eval.py      # audio subset through STT (needs GROQ_API_KEY)
+uv run python scripts/make_eval_audio.py  # synthesise stand-in clips (needs ELEVENLABS_API_KEY)
+uv run python scripts/latency_report.py --out eval/results/latency.md
+uv run python scripts/cost_report.py --out eval/results/cost.md
 python scripts/generate_catalog.py        # regenerate data/listings.csv (deterministic)
 docker compose up --build                 # full stack: ui :5173→nginx, app :8000, db :5433 (host port; 5432 in the container)
-cd ui && npm run dev | npm run lint | npm run build
+cd ui && npm install && npm run dev | npm run lint | npm run build
 ```
 
 ## Hard rules (non-negotiable)
