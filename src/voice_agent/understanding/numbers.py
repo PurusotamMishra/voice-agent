@@ -40,6 +40,7 @@ _COMPOUND_RE = re.compile(
     r"(?!\s*(?:kms?\b|kilomet))"
 )
 _SAADHE_RE = re.compile(r"\bsa+dhe\s+(\d+(?:\.\d+)?)")
+# Assumption 11: every year phrase is inclusive ("after 2019" -> min_year 2019).
 _YEAR_RE = re.compile(
     r"(?:after|since|from|newer than)\s+(20\d\d)\b"
     r"|\b(20\d\d)\s*(?:ke baad|ke bad|se naya|se nayi|or newer|or later|onwards|\+)"

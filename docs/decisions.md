@@ -44,7 +44,8 @@ Fill this in as decisions are made; it goes into the README verbatim.
 8. A model-family mention ("Ace", "chhota haathi") filters by family prefix (Ace Gold, Ace CNG, Ace Mega, …), not one variant.
 9. Follow-up questions are answered by deterministic templates from the referenced listing (no LLM): zero hallucination risk, lower latency.
 10. STT and TTS run in the API layer around the graph; the graph itself is text-in/text-out, so eval and CLI exercise the same graph as voice.
-11. …
+11. Every year phrase includes the year: "after / newer than / 2019 ke baad / since / from 2019" all mean `year >= 2019` (owner decision, 2026-10-20). Buyers often say "after 2019" meaning "2019 or newer"; excluding it would hide listings they meant.
+12. …
 
 ## B. Data / catalog
 

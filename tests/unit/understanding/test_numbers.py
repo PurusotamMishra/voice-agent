@@ -122,3 +122,10 @@ def test_budget_then_km_are_not_merged() -> None:
 
 def test_lakh_hazaar_compound_still_merges() -> None:
     assert parse_numeric("4 lakh 50 hazaar tak").budget_max == 450_000
+
+
+@pytest.mark.parametrize(
+    "text", ["after 2019", "newer than 2019", "2019 ke baad", "since 2019", "2019 onwards"]
+)
+def test_year_phrases_include_the_year(text: str) -> None:
+    assert parse_numeric(text).min_year == 2019  # Assumption 11
