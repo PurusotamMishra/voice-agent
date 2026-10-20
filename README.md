@@ -79,8 +79,8 @@ Results: `eval/results/latest.md` and `latest.json` (text eval), `audio_latest.m
 Numbers so far:
 - Text loop, 25 cases: 25/25, constraint safety 100% (2026-10-19).
 - Hinglish category, 7 cases: 7/7 on the first run.
-- Full 32-case run: TBD after live run
-- Audio eval (5 clips; the clips are synthetic stand-ins, not real recordings, and are not generated yet): TBD after live run
+- Full 32-case run on the smaller models (`GROQ_MODEL=openai/gpt-oss-20b`, `GROQ_COMPOSE_MODEL=qwen/qwen3.8-27b`, used because the day's `gpt-oss-120b` token allowance was spent): 26/32 = 81%, constraint safety 98.4% (2026-10-20, `eval/results/alt-models-2026-10-20.md`). Four failures are replies that passed the validator only on regeneration (safe, but the eval wants a clean first try); two are "Tata Ace" read as a body type, one of which also dropped the make. The NLU p50 fell from 5.7 s to 0.63 s.
+- Audio eval (5 ElevenLabs Flash clips, synthetic stand-ins, not real recordings): 3/5. English 3/3, including the noisy clip. Hinglish through Groq Whisper 0/2: Whisper wrote one clip in Devanagari and the other in Urdu script, so no slots were parsed. Sarvam `translit` (N3) is the fix; it needs `SARVAM_API_KEY`.
 
 ## 6. Latency and cost
 
@@ -98,8 +98,12 @@ Mitigations in place for the slow LLM stage (J5):
 
 Prices come from `config/prices.yaml` (checked 2026-10-20; the ElevenLabs row and the USD to INR rate are unverified).
 
-- Speech-end to first-audio p50/p95, sentence vs whole TTS: TBD after live run
-- Cost per conversation (INR) and at 100k conversations/month: TBD after live run
+Measured on 2026-10-20 (`eval/results/latency.md`; 8 sentence-mode and 5 whole-mode turns through the API, Groq free tier):
+- Server total p50/p95: 5.2 s / 10.2 s with sentence TTS, 13.5 s / 24.5 s with whole TTS. The whole-mode turns ran into Groq rate limiting on compose, so compare the TTS gap below, not the totals.
+- **Dominant stage: compose** (one LLM call, p50 1.4 s, p95 8.7 s, rate-limit waits included). STT about 0.6 s, NLU 0.7 s, search under 5 ms.
+- **Mitigation measured:** time from finished reply to first audio ready, per-turn median: **0.37 s with sentence TTS vs 1.13 s with whole TTS**, so sentence streaming wins back about 0.8 s.
+- The browser-measured speech-end to first-audio number needs the mic run in the UI; it is not measured yet.
+- Cost: **₹1.51 per turn** (13 one-turn conversations), about **₹6 for a 4-turn conversation**, so about ₹6 lakh a month at 100k conversations. ElevenLabs TTS is about 95% of it; Groq LLM and STT are under ₹0.07 a turn (`eval/results/cost.md`).
 
 ## 7. Design in one screen
 
@@ -117,6 +121,8 @@ Why each choice was made, with the rejected alternative: [docs/decisions.md](doc
 - A single-letter mishear (for example "S" for "Ace") cannot be matched by trigrams (decisions D2, F3).
 - Groq free tier: 8,000 tokens per minute per model, about 3 turns a minute. This is the first bottleneck and part of why eval latency is high (decisions M4).
 - The audio eval clips are synthetic stand-ins (N7), so STT results will be optimistic. WER is brittle for Devanagari output and digits versus words.
+- Without `SARVAM_API_KEY`, Hinglish speech goes to Groq Whisper, which often returns Devanagari or Urdu script; the parser and aliases are Roman script, so those turns lose their slots. Typed Hinglish works.
+- Groq free tier also caps each model at 200,000 tokens a day. One full eval uses 100–150k, so a second run in a day can fall back to rules and templates.
 - The listing catalog is synthetic (see `CITATIONS.md`).
 - `/api/health` does not ping the database after startup (N10).
 
