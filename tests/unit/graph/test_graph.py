@@ -196,3 +196,26 @@ async def test_compose_llm_is_used_for_composition_when_given() -> None:
     assert t.results and "template" in t.fallback_used  # the composer FakeLLM was the one called
     assert len(composer.calls) == 1  # FakeLLM records each structured() call
     assert len(extract.calls) == 1  # the extractor LLM was not asked to compose
+
+
+async def test_state_snapshot_is_json_safe() -> None:
+    llm = FakeLLM(
+        [
+            TurnIntent(
+                intent=Intent.SEARCH,
+                slots=ExtractedSlots(
+                    fuel=Fuel.CNG, body_type=BodyType.PICKUP, city_mention="Mumbai"
+                ),
+            ),
+            ProviderError("fake", "composer offline"),
+        ]
+    )
+    r = runner(llm)
+    await r.run("s7", "CNG pickup in Mumbai")
+    snap = await r.state("s7")
+    assert snap["turn"] == 1 and snap["slots"]["fuel"] == "cng"
+    assert snap["last_results"][0]["listing_id"] == "A"
+    import json
+
+    json.dumps(snap)  # must not raise
+    assert (await r.state("never-seen"))["slots"] == {}

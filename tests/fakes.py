@@ -8,7 +8,14 @@ from pydantic import BaseModel
 from voice_agent.catalog.filters import constraint_violations
 from voice_agent.domain.enums import AliasKind, BodyType, City, Fuel, SellerType
 from voice_agent.domain.models import Filters, Listing
-from voice_agent.domain.ports import LLMResult, Match, SearchResult, Usage
+from voice_agent.domain.ports import (
+    LLMResult,
+    Match,
+    ProviderError,
+    SearchResult,
+    Transcript,
+    Usage,
+)
 
 _DEFAULTS: dict[str, Any] = {
     "listing_id": "VH-0001",
@@ -88,3 +95,28 @@ class FakeCatalog:
 
     async def get(self, listing_id: str) -> Listing | None:
         return next((x for x in self._listings if x.listing_id == listing_id), None)
+
+
+class FakeSTT:
+    def __init__(
+        self, text: str = "", error: Exception | None = None, name: str = "fake-stt"
+    ) -> None:
+        self.name, self._text, self._error = name, text, error
+
+    async def transcribe(self, audio: bytes, filename: str, content_type: str) -> Transcript:
+        if self._error:
+            raise self._error
+        return Transcript(text=self._text, provider=self.name, confidence=0.9, audio_seconds=1.5)
+
+
+class FakeTTS:
+    def __init__(self, fail_after: int | None = None) -> None:
+        self.name = "fake-tts"
+        self.spoken: list[str] = []
+        self._fail_after = fail_after
+
+    async def synthesize(self, text: str) -> bytes:
+        if self._fail_after is not None and len(self.spoken) >= self._fail_after:
+            raise ProviderError("fake-tts", "quota")
+        self.spoken.append(text)
+        return b"mp3:" + text.encode()

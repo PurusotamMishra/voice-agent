@@ -98,6 +98,25 @@ class TurnRunner:
             timings_ms={"total": total_ms},
         )
 
+    async def state(self, session_id: str) -> dict[str, Any]:
+        """JSON-safe conversation memory (GET /api/session/{id}/state)."""
+        snapshot = await self._graph.aget_state({"configurable": {"thread_id": session_id}})
+        v: dict[str, Any] = snapshot.values or {}
+        slots = v.get("slots")
+        return {
+            "session_id": session_id,
+            "turn": v.get("turn", 0),
+            "slots": slots.filled() if slots else {},
+            "pending_confirmation": _dump(v.get("pending_confirmation")),
+            "pending_relaxation": _dump(v.get("pending_relaxation")),
+            "last_results": [r.model_dump(mode="json") for r in v.get("last_results") or []],
+            "focused_listing_id": v.get("focused_listing_id"),
+        }
+
+
+def _dump(model: BaseModel | None) -> dict[str, Any] | None:
+    return model.model_dump(mode="json") if model is not None else None
+
 
 def _to_result(session_id: str, text: str, s: dict[str, Any], total_ms: float) -> TurnResult:
     route = s["route"]
