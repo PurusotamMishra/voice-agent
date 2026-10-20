@@ -1,0 +1,13 @@
+.git
+.venv
+.env
+logs
+.superpowers
+**/__pycache__
+.mypy_cache
+.ruff_cache
+.pytest_cache
+ui
+eval/audio
+docs
+tests
