@@ -1,0 +1,11 @@
+# Paid-tier list prices used by scripts/cost_report.py (L5). Re-verify before quoting.
+checked: "2026-10-20"
+usd_to_inr: 96.5                          # unverified date: undated mid-market quote (pluang); 52-week range 86.25-96.96
+llm:        # USD per 1M tokens
+  groq: {input: 0.15, output: 0.60}       # openai/gpt-oss-120b on Groq (console.groq.com/docs/models)
+  gemini: {input: 0.10, output: 0.40}     # gemini-2.5-flash-lite, paid standard tier
+stt:        # USD per audio hour (Groq bills a 10 s minimum per request)
+  groq-stt: 0.111                         # whisper-large-v3
+  sarvam-stt: 0.305                       # Rs 29.40/hour pay-as-you-go (Rs 0.49/min) / 96.5
+tts:        # USD per 1k characters
+  elevenlabs-tts: 0.04                    # Flash/Turbo row; "Flash v2.5" not named on page, unverified
