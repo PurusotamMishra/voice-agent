@@ -5,6 +5,7 @@ export class AudioQueue {
   private chain: Promise<void> = Promise.resolve();
   private generation = 0;
   private firstPlayed = false;
+  private current: HTMLAudioElement | null = null;
   onFirstPlay: ((epochMs: number) => void) | null = null;
   lang = "en-IN";
 
@@ -12,6 +13,8 @@ export class AudioQueue {
     this.generation += 1;
     this.chain = Promise.resolve();
     this.firstPlayed = false;
+    this.current?.pause();
+    this.current = null;
     window.speechSynthesis?.cancel();
   }
 
@@ -31,7 +34,10 @@ export class AudioQueue {
     return new Promise((resolve) => {
       if (s.audio_b64) {
         const audio = new Audio(`data:audio/mpeg;base64,${s.audio_b64}`);
-        audio.onplaying = () => this.markFirst();
+        this.current = audio;
+        audio.onplaying = () => {
+          if (this.current === audio) this.markFirst();
+        };
         audio.onended = () => resolve();
         audio.onerror = () => resolve();
         audio.play().catch(() => resolve());

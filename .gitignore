@@ -27,3 +27,4 @@ Thumbs.db
 *.pdf
 .superpowers/
 *.stackdump
+*.tsbuildinfo
