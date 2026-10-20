@@ -1,18 +1,12 @@
 import type { SearchEvent } from "../api/types";
 
 export function SqlPanel({ s }: { s: SearchEvent | null }) {
+  if (!s?.sql) return null;
   return (
-    <section className="panel">
-      <h2>Executed filters &amp; SQL</h2>
-      {!s?.sql ? (
-        <p>No search this turn.</p>
-      ) : (
-        <>
-          <pre>{JSON.stringify(s.filters, null, 1)}</pre>
-          <pre>{s.sql}</pre>
-          <pre>params: {JSON.stringify(s.params)}</pre>
-        </>
-      )}
-    </section>
+    <details className="sql">
+      <summary>Executed SQL and parameters</summary>
+      <pre>{s.sql}</pre>
+      <pre>{JSON.stringify(s.params, null, 1)}</pre>
+    </details>
   );
 }

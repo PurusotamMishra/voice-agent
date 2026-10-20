@@ -137,36 +137,65 @@ export default function App() {
 
   return (
     <div className="app">
-      <h1>Vyngo voice vehicle search</h1>
-      <div className="controls">
-        <button
-          className={`ptt ${recording ? "recording" : ""}`}
-          disabled={!session || busy}
-          onPointerDown={onPress}
-          onPointerUp={onRelease}
-          onPointerLeave={() => recording && onRelease()}
-        >
-          {recording ? "Listening… release to send" : busy ? "Working…" : "Hold to talk"}
-        </button>
-        <select value={language} onChange={(e) => setLanguage(e.target.value as Language)}>
-          <option value="en">English</option>
-          <option value="hi-en">Hinglish</option>
-        </select>
-        <form onSubmit={onType} style={{ display: "flex", flex: 1, gap: 8 }}>
-          <input type="text" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="…or type here" />
-          <button type="submit" disabled={!session || busy}>
-            Send
-          </button>
-        </form>
-      </div>
-      {error && <p className="error">{error}</p>}
-      <div className="grid">
-        <Conversation turns={turns} />
+      <header className="top">
+        <h1 className="wordmark">
+          Vyngo<small>used commercial vehicles, by voice</small>
+        </h1>
         <SlotsPanel u={understanding} />
-        <ResultsPanel s={search} />
-        <SqlPanel s={search} />
-        <LatencyPanel timings={done?.timings_ms ?? {}} firstAudioMs={firstAudioMs} />
-        <VerdictPanel done={done} transcript={transcript} />
+      </header>
+      <div className="layout">
+        <section className="chat" aria-label="Conversation">
+          <Conversation turns={turns} />
+          <div className="composer">
+            <div className="mic-row">
+              <button
+                className={`ptt${recording ? " recording" : ""}`}
+                disabled={!session || busy}
+                onPointerDown={onPress}
+                onPointerUp={onRelease}
+                onPointerLeave={() => recording && onRelease()}
+                aria-label="Hold to talk"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <rect x="9" y="3" width="6" height="11" rx="3" />
+                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
+                </svg>
+              </button>
+              <div className="mic-label">
+                {recording ? "Listening" : busy ? "Working on it" : "Hold to talk"}
+                <span>{recording ? "Release to send" : busy ? "The answer plays as it arrives" : "Press, speak, release"}</span>
+              </div>
+              <select
+                className="lang"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as Language)}
+                aria-label="Input language"
+              >
+                <option value="en">English</option>
+                <option value="hi-en">Hinglish</option>
+              </select>
+            </div>
+            <form className="typed" onSubmit={onType}>
+              <input
+                type="text"
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder="Or type your request"
+                aria-label="Type your request"
+              />
+              <button type="submit" disabled={!session || busy}>
+                Send
+              </button>
+            </form>
+            {error && <p className="error">{error}</p>}
+          </div>
+        </section>
+        <div className="evidence">
+          <ResultsPanel s={search} />
+          <LatencyPanel timings={done?.timings_ms ?? {}} firstAudioMs={firstAudioMs} />
+          <VerdictPanel done={done} transcript={transcript} />
+          <SqlPanel s={search} />
+        </div>
       </div>
     </div>
   );
